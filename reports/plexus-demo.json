@@ -1,0 +1,37 @@
+{
+  "project": "com.example:plexus-demo:1.0-SNAPSHOT",
+  "findings": [
+    {
+      "chain_id": "CVE-2018-1002200::com.example:plexus-demo:1.0-SNAPSHOT",
+      "cve": "CVE-2018-1002200",
+      "project": "com.example:plexus-demo:1.0-SNAPSHOT",
+      "vulnerable_component": "org.codehaus.plexus:plexus-archiver:<=3.6.0",
+      "seed_method": "org.codehaus.plexus.archiver.AbstractUnArchiver.extractFile(Ljava/io/File;Ljava/io/File;Ljava/io/InputStream;Ljava/lang/String;Ljava/util/Date;ZLjava/lang/Integer;Ljava/lang/String;)V",
+      "evidence_level": 3,
+      "static": {
+        "status": "reachable",
+        "confidence": 0.9,
+        "call_path": [
+          "com.example.App.main([Ljava/lang/String;)V",
+          "org.codehaus.plexus.archiver.AbstractUnArchiver.extract()V",
+          "org.codehaus.plexus.archiver.tar.TarUnArchiver.execute()V",
+          "org.codehaus.plexus.archiver.tar.TarUnArchiver.execute(Ljava/io/File;Ljava/io/File;)V",
+          "org.codehaus.plexus.archiver.AbstractUnArchiver.extractFile(Ljava/io/File;Ljava/io/File;Ljava/io/InputStream;Ljava/lang/String;Ljava/util/Date;ZLjava/lang/Integer;Ljava/lang/String;)V"
+        ],
+        "uncertain_features": [],
+        "engine": "asm-callgraph-1.0"
+      },
+      "runtime": null,
+      "decision": "under_investigation",
+      "decision_confidence": 0.6,
+      "risk_score": 2.8,
+      "notes": "Static: reachable (conf=0.9) | Path depth: 5 hops"
+    }
+  ],
+  "summary": {
+    "total": 1,
+    "affected": 0,
+    "not_affected": 0,
+    "under_investigation": 1
+  }
+}

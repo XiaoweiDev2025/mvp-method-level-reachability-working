@@ -1,0 +1,35 @@
+{
+  "project": "com.example:commons-io-demo:1.0-SNAPSHOT",
+  "findings": [
+    {
+      "chain_id": "CVE-2021-29425::com.example:commons-io-demo:1.0-SNAPSHOT",
+      "cve": "CVE-2021-29425",
+      "project": "com.example:commons-io-demo:1.0-SNAPSHOT",
+      "vulnerable_component": "commons-io:commons-io:>=2.0,<2.7",
+      "seed_method": "org.apache.commons.io.FilenameUtils.getPrefixLength(Ljava/lang/String;)I",
+      "evidence_level": 3,
+      "static": {
+        "status": "reachable",
+        "confidence": 0.9,
+        "call_path": [
+          "com.example.App.main([Ljava/lang/String;)V",
+          "org.apache.commons.io.FilenameUtils.concat(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;",
+          "org.apache.commons.io.FilenameUtils.getPrefixLength(Ljava/lang/String;)I"
+        ],
+        "uncertain_features": [],
+        "engine": "asm-callgraph-1.0"
+      },
+      "runtime": null,
+      "decision": "under_investigation",
+      "decision_confidence": 0.6,
+      "risk_score": 2.4,
+      "notes": "Static: reachable (conf=0.9) | Path depth: 3 hops"
+    }
+  ],
+  "summary": {
+    "total": 1,
+    "affected": 0,
+    "not_affected": 0,
+    "under_investigation": 1
+  }
+}

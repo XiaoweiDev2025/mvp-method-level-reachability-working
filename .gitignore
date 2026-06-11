@@ -1,0 +1,26 @@
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Maven build metadata (not needed for running the tool)
+**/target/classes/
+**/target/test-classes/
+**/target/maven-archiver/
+**/target/maven-status/
+**/target/original-*.jar
+**/target/surefire-reports/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp files
+*.tmp
+callgraph.tmp.txt

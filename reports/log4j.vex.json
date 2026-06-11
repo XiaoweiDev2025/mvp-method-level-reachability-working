@@ -1,0 +1,57 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-06-11T13:53:56.220589Z",
+    "tools": [
+      {
+        "name": "vuln-risk-assessor",
+        "version": "1.0"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "id": "CVE-2018-1002200",
+      "analysis": {
+        "state": "not_affected",
+        "detail": "Static: not_reachable (conf=0.7) | Uncertain features: ['invokedynamic_not_modelled'] | Runtime: not_observed (conf=0.6)",
+        "response": []
+      },
+      "affects": [
+        {
+          "ref": "com.example:log4j-demo"
+        }
+      ]
+    },
+    {
+      "id": "CVE-2021-29425",
+      "analysis": {
+        "state": "not_affected",
+        "detail": "Static: not_reachable (conf=0.7) | Uncertain features: ['invokedynamic_not_modelled'] | Runtime: not_observed (conf=0.6)",
+        "response": []
+      },
+      "affects": [
+        {
+          "ref": "com.example:log4j-demo"
+        }
+      ]
+    },
+    {
+      "id": "CVE-2021-44228",
+      "analysis": {
+        "state": "exploitable",
+        "detail": "Static: reachable (conf=0.9) | Path depth: 15 hops | Runtime: observed (conf=0.95) | Observed 1 call(s) | Trace IDs: ['50b93a0c550dd9e980d2d7675cf93544']",
+        "response": [
+          "update"
+        ]
+      },
+      "affects": [
+        {
+          "ref": "com.example:log4j-demo"
+        }
+      ]
+    }
+  ]
+}
