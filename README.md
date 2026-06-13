@@ -140,10 +140,45 @@ Then re-run the pipeline with `--trace-log data/traces/run1.log` to upgrade to L
 
 ### Step 6 — Semi-automated seed extraction from a fix commit
 
+`light_cvemapping.py` is a **candidate generator**, not an automatic seed generator.
+Output goes into `candidate_methods:` — a separate block from `vulnerable_methods:`.
+Only after manual validation (descriptor completion, evidence review) should a candidate
+be promoted to a trusted seed YAML.
+
 ```bash
 python analyzer/light_cvemapping.py \
   --commit https://github.com/apache/logging-log4j2/commit/c77b3cb7 \
-  --package org.apache.logging.log4j.core.lookup
+  --cve CVE-2021-44228 \
+  --group-id org.apache.logging.log4j \
+  --artifact-id log4j-core \
+  --advisory GHSA-jfh8-c2jp-5v3q \
+  --package org.apache.logging.log4j.core.lookup \
+  --output /tmp/cve-2021-44228-candidates.yaml
+```
+
+**Key flags:**
+
+| Flag | Description |
+|---|---|
+| `--commit` | GitHub fix commit URL (required) |
+| `--cve` | CVE ID to embed in output YAML |
+| `--group-id` / `--artifact-id` | Maven coordinates of the vulnerable library |
+| `--advisory` | Advisory IDs or URLs (GHSA-xxx, https://...) — space-separated |
+| `--package` | Java package prefix to filter candidates (reduces noise for large commits) |
+| `--output` | Write YAML to file; if omitted, prints to stdout |
+
+**Output structure:**
+
+```yaml
+candidate_methods:          # NOT vulnerable_methods — requires manual promotion
+  - fqcn: org.apache.logging.log4j.core.lookup.JndiLookup
+    method: lookup
+    descriptor: null        # always null — requires manual JVM type resolution
+    descriptor_hint: "(?Ljava/lang/String;)Ljava/lang/String;"  # best-effort; ? = unknown type
+    patch_semantic: method_deleted
+    evidence_terms: [jndi, lookup]
+    confidence: high
+    reason: "Method was deleted by the security patch. Security-relevant terms in diff: jndi, lookup."
 ```
 
 ---
@@ -284,6 +319,19 @@ This tool is designed to produce evidence suitable for EU Cyber Resilience Act (
 - **`--output-vex`** produces a CycloneDX 1.5 VEX document. VEX is the standard format for per-CVE exploitability status and is directly consumable by conformity assessors.
 - **`AuditRecord`** (populated at L5) captures reviewer identity, timestamp, justification, and waiver expiry — the chain-of-custody elements a conformity assessor will look for.
 - **`generated_at`** on a report containing an L4 AFFECTED finding is legally significant under CRA Article 14 (24-hour notification obligation for actively exploited vulnerabilities).
+- **`evidence_terms`** in seed candidate output are drawn from a predefined, CWE-keyed vocabulary — not a machine-learning model. Every term is traceable to a specific keyword match in the diff, satisfying the CRA requirement that conformity evidence be independently verifiable.
+
+### Seed pipeline reproducibility boundary
+
+The analysis pipeline (`pipeline.py` → `static_analyzer.py` → `fusion.py`) is **fully local and reproducible**: given the same `data/seeds/*.yaml`, call graph cache, and trace log, the output is deterministic and verifiable without any network calls.
+
+`seed_ingestor.py` (and `light_cvemapping.py`) operate **upstream** of this boundary — they are offline preparation tools for creating new seeds, not part of the runtime analysis. Their outputs (`candidate_methods`) require human validation before promotion to `vulnerable_methods` in a trusted seed file. This validation step is enforced by convention:
+
+- `candidate_methods` ≠ `vulnerable_methods` — the pipeline only reads `vulnerable_methods`
+- `requires_manual_validation: true` is an explicit machine-readable assertion in every candidate output
+- `status: NEEDS_VALIDATION` must be manually changed to `VALIDATED` by a security engineer
+
+External API calls (OSV, GitHub) only occur during seed preparation, never during analysis. A conformity assessor auditing a report can reproduce it from the seed files and call graph alone, without network access.
 
 ---
 
