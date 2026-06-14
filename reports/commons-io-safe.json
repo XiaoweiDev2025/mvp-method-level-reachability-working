@@ -1,0 +1,63 @@
+{
+  "project": "com.example:safe-commons-io-demo",
+  "findings": [
+    {
+      "chain_id": "CVE-2021-29425::com.example:safe-commons-io-demo",
+      "cve": "CVE-2021-29425",
+      "project": "com.example:safe-commons-io-demo",
+      "vulnerable_component": "commons-io:commons-io:>=2.0,<2.7",
+      "seed_method": "org.apache.commons.io.FilenameUtils.getPrefixLength(Ljava/lang/String;)I",
+      "evidence_level": 2,
+      "evidence_summary": {
+        "dependency_match": true,
+        "static_reachable": false,
+        "runtime_observed": false,
+        "entry_points": [
+          "com.example.App.main([Ljava/lang/String;)V"
+        ],
+        "call_path_depth": 0,
+        "trace_ids": []
+      },
+      "static": {
+        "status": "not_reachable",
+        "confidence": 0.7,
+        "analysis_fingerprint": "5964e7fa6651f7f7",
+        "entry_points_used": [
+          "com.example.App.main([Ljava/lang/String;)V"
+        ],
+        "call_path": [],
+        "call_path_annotated": [],
+        "uncertain_features": [
+          "invokedynamic_not_modelled"
+        ],
+        "engine": "asm-callgraph-1.0"
+      },
+      "runtime": null,
+      "decision": "not_affected_candidate",
+      "decision_confidence": 0.595,
+      "risk_score": 0.5,
+      "notes": "Static: not_reachable (conf=0.7) | Uncertain features: ['invokedynamic_not_modelled']",
+      "audit_record": null,
+      "remediation": {
+        "priority": "MONITOR",
+        "upgrade_path": [
+          {
+            "artifact": "commons-io:commons-io",
+            "from_version": ">=2.0,<2.7",
+            "to_version": "2.7"
+          }
+        ],
+        "entry_point_in_your_code": "",
+        "fix_commit": "https://github.com/apache/commons-io/commit/a15460595e82897910b28236ebf11a0e7bb4ddc3",
+        "effort_estimate": "LOW",
+        "notes": "No confirmed reachability. Increase test coverage to determine actual exposure, or upgrade when convenient."
+      }
+    }
+  ],
+  "summary": {
+    "total": 1,
+    "affected": 1,
+    "not_affected": 1,
+    "under_investigation": 0
+  }
+}

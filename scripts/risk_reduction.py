@@ -39,7 +39,9 @@ EVALUATION_MATRIX = [
     ("reports/text4shell-vuln.json", "CVE-2022-42889", "vulnerable-text4shell-demo",   9.8),
     ("reports/text4shell-safe.json", "CVE-2022-42889", "safe-text4shell-demo",          9.8),
     ("reports/commons-io.json",      "CVE-2021-29425", "commons-io-demo",               4.8),
+    ("reports/commons-io-safe.json", "CVE-2021-29425", "safe-commons-io-demo",           4.8),
     ("reports/plexus.json",          "CVE-2018-1002200", "plexus-demo",                 5.5),
+    ("reports/plexus-safe.json",     "CVE-2018-1002200", "safe-plexus-demo",             5.5),
 ]
 
 DECISION_LABEL = {
