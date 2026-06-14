@@ -54,6 +54,7 @@ CVSS_BASE: dict[str, float] = {
     "CVE-2021-44228":  10.0,   # Log4Shell      — Critical
     "CVE-2021-29425":   4.8,   # commons-io     — Medium
     "CVE-2018-1002200": 5.5,   # plexus-archiver — Medium
+    "CVE-2022-42889":   9.8,   # Text4Shell     — Critical
 }
 
 DEFAULT_CVSS = 7.0  # Fallback for unknown CVEs (assume High to be conservative)
