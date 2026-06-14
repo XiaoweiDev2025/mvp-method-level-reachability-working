@@ -65,6 +65,7 @@ class StaticEvidence:
     call_path: list[str] = field(default_factory=list)   # Method FQCN chain from entry to seed
     call_path_annotated: list[dict] = field(default_factory=list)  # Same path, each hop tagged with edge_type
     uncertain_features: list[str] = field(default_factory=list)  # e.g. ["reflection", "spring_proxy"]
+    residual_risk_reason: list[str] = field(default_factory=list)  # Why NOT_REACHABLE is not zero-risk
     engine: str = ""            # e.g. "java-callgraph-2.0", "soot-4.4"
     analysis_scope: str = ""    # JARs that were included in analysis
     entry_points_used: list[str] = field(default_factory=list)   # Entry points BFS was seeded from
@@ -147,6 +148,7 @@ class EvidenceChain:
                 "call_path": se.call_path,
                 "call_path_annotated": se.call_path_annotated,
                 "uncertain_features": se.uncertain_features,
+                "residual_risk_reason": se.residual_risk_reason,
                 "engine": se.engine,
             } if se else None,
             "runtime": {

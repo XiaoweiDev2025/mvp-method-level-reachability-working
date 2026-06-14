@@ -44,11 +44,19 @@ EVALUATION_MATRIX = [
     ("reports/plexus-safe.json",     "CVE-2018-1002200", "safe-plexus-demo",             5.5),
 ]
 
-DECISION_LABEL = {
-    "affected":               "AFFECTED",
-    "likely_affected":        "LIKELY_AFFECTED",
-    "under_investigation":    "REACHABLE (no trace)",
-    "not_affected_candidate": "NOT_REACHABLE",
+EVIDENCE_LABEL = {
+    "affected":               "L4 RUNTIME_OBSERVED / AFFECTED",
+    "likely_affected":        "L3 STATIC_REACHABLE / NOT_OBSERVED",
+    "under_investigation":    "L3 STATIC_REACHABLE / NOT_RUN",
+    "not_affected_candidate": "L2 NOT_REACHABLE",
+}
+
+# Authoritative multipliers (from fusion.py) — used for display, not back-calculated.
+MULTIPLIER = {
+    "affected":               1.00,
+    "likely_affected":        0.75,
+    "under_investigation":    0.50,
+    "not_affected_candidate": 0.10,
 }
 
 ROOT = Path(__file__).parent.parent
@@ -66,13 +74,16 @@ def main() -> None:
         if finding is None:
             print(f"  [SKIP] {cve_id} not found in {rel_path}")
             continue
+        risk     = finding["risk_score"]
+        decision = finding["decision"]
         rows.append({
-            "app":      app_label,
-            "cve":      cve_id,
-            "cvss":     cvss,
-            "ml_risk":  finding["risk_score"],
-            "decision": finding["decision"],
-            "level":    f"L{finding['evidence_level']}",
+            "app":        app_label,
+            "cve":        cve_id,
+            "cvss":       cvss,
+            "ml_risk":    risk,
+            "multiplier": MULTIPLIER.get(decision, 0.50),
+            "decision":   decision,
+            "level":      f"L{finding['evidence_level']}",
         })
 
     if not rows:
@@ -88,23 +99,23 @@ def main() -> None:
     # -----------------------------------------------------------------------
     col_app = max(len(r["app"]) for r in rows) + 2
     header = (
-        f"{'App':<{col_app}} {'CVE':<17} {'CVSS':>6}  "
-        f"{'Pkg scanner':>12}  {'This tool':>10}  Result"
+        f"{'App':<{col_app}} {'CVE':<17} {'CVSS':>5}  "
+        f"{'Pkg exposure':>13}  {'mult':>4}  {'Adj. exposure':>14}  Evidence classification"
     )
     sep = "-" * len(header)
     print(header)
     print(sep)
     for r in rows:
-        label = DECISION_LABEL.get(r["decision"], r["decision"])
+        label = EVIDENCE_LABEL.get(r["decision"], r["decision"])
         print(
-            f"{r['app']:<{col_app}} {r['cve']:<17} {r['cvss']:>6.1f}  "
-            f"{'VULNERABLE':>12}  {r['ml_risk']:>10.1f}  "
-            f"{r['level']} {label}"
+            f"{r['app']:<{col_app}} {r['cve']:<17} {r['cvss']:>5.1f}  "
+            f"{r['cvss']:>13.1f}  {r['multiplier']:>4.2f}  {r['ml_risk']:>14.1f}  "
+            f"{label}"
         )
     print(sep)
     print(
-        f"{'TOTAL':<{col_app}} {'':<17} {pkg_total:>6.1f}  "
-        f"{pkg_total:>12.1f}  {ml_total:>10.1f}"
+        f"{'TOTAL':<{col_app}} {'':<17} {'':<5}  "
+        f"{pkg_total:>13.1f}  {'':>4}  {ml_total:>14.1f}"
     )
     print()
 
@@ -112,25 +123,30 @@ def main() -> None:
     # Summary statistics
     # -----------------------------------------------------------------------
     n = len(rows)
-    n_reachable     = sum(1 for r in rows if r["decision"] not in ("not_affected_candidate",))
+    n_reachable     = sum(1 for r in rows if r["decision"] != "not_affected_candidate")
     n_not_reachable = sum(1 for r in rows if r["decision"] == "not_affected_candidate")
     n_affected      = sum(1 for r in rows if r["decision"] == "affected")
 
-    print(f"Test cases  : {n} applications × CVE pairs")
-    print(f"  Reachable : {n_reachable}  ({n_reachable/n*100:.0f}%)")
-    print(f"  Not reach : {n_not_reachable}  ({n_not_reachable/n*100:.0f}%) — these are pkg-scanner false positives")
-    print(f"  Confirmed : {n_affected}  (L4 runtime-observed)")
+    print(f"Evaluation dataset : 8 Java Maven applications covering {n // 2} CVEs "
+          f"with vulnerable and safe variants")
+    print(f"  Statically reachable         : {n_reachable}/{n} "
+          f"({n_reachable/n*100:.0f}%)")
+    print(f"  Statically not reachable     : {n_not_reachable}/{n} "
+          f"({n_not_reachable/n*100:.0f}%)  -- package-level over-approximations")
+    print(f"  Runtime-confirmed (L4)       : {n_affected}/{n}  (Log4Shell with OTel trace)")
     print()
-    print(f"Aggregate CVSS-weighted exposure (package-level) : {pkg_total:.1f}")
-    print(f"Aggregate reachability-adjusted exposure         : {ml_total:.1f}")
-    print(f"Exposure re-weighting reduction                  : {reduction:.1f}%")
+    print(f"Aggregate CVSS-weighted exposure (package-level)        : {pkg_total:.1f}")
+    print(f"Aggregate reachability-adjusted exposure (this tool)    : {ml_total:.1f}")
+    print(f"Exposure re-weighting reduction                         : {reduction:.1f}%")
     print()
+    print("Headline (for abstract):")
     print(
-        f'Headline: "Reachability analysis reduced aggregate CVSS-weighted exposure by '
-        f'{reduction:.0f}% relative to package-level scanning across our '
-        f'{n}-application evaluation dataset, by assigning a residual weight of 0.10 '
-        f'to statically-unreachable findings to account for analysis uncertainty '
-        f'({n_not_reachable} of {n} package-scanner alerts were statically unreachable)."'
+        f'  "Across the {n}-application evaluation dataset, method-level reachability '
+        f"analysis reduced aggregate CVSS-weighted exposure by {reduction:.1f}% compared "
+        f"with package-level scanning under the proposed reachability-adjusted scoring "
+        f"model. {n_not_reachable} of {n} package-level alerts were classified as "
+        f'statically not reachable and assigned a residual weight of 0.10 to account '
+        f'for analysis uncertainty."'
     )
 
 

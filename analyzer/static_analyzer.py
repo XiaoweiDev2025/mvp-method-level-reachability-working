@@ -399,6 +399,11 @@ class StaticAnalyzer:
                 status=StaticReachability.NOT_REACHABLE,
                 confidence=0.7,    # 0.7 not 1.0: reflection/invokedynamic may have been missed
                 uncertain_features=["invokedynamic_not_modelled"],
+                residual_risk_reason=[
+                    "reflection_not_modelled",
+                    "invokedynamic_not_modelled",
+                    "future_code_change_not_modelled",
+                ],
                 entry_points_used=entry_points,
                 engine="asm-callgraph-1.0",
                 analysis_scope=", ".join(str(j) for j in app_jars),
