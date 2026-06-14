@@ -1,6 +1,6 @@
 # Vulnerability Risk Assessor
 
-A prototype tool for assessing the **actual risk** of vulnerable open-source dependencies in Java Maven projects by combining static reachability analysis, runtime execution evidence, and CVSS-weighted risk scoring.
+A prototype tool for assessing whether known vulnerable methods in Java Maven dependencies are reachable from application code. It combines bytecode-level call graph analysis, runtime OpenTelemetry evidence, and CVSS-weighted exposure scoring, and emits JSON and CycloneDX VEX-style reports for evidence-supported vulnerability impact assessment.
 
 Inspired by: *Shen et al., "Beyond Package-Level: Method-Level Vulnerability Reachability Analysis," ESE 2025.*
 
@@ -11,6 +11,14 @@ Designed with EU Cyber Resilience Act (CRA) compliance in mind: the output is st
 ## Problem Statement
 
 Package-level vulnerability scanners (e.g., Dependabot, OWASP Dependency-Check) report every CVE in every transitive dependency — regardless of whether the vulnerable code path is actually reachable from your application. This tool narrows that down using call-graph reachability so you can prioritize fixes based on actual exposure rather than theoretical presence.
+
+---
+
+## Key Result
+
+Across 8 app-CVE evaluation cases covering 4 CVEs and their safe variants, package-level scanners would report all 8 applications as vulnerable (affected dependency version present). This prototype classified 4 of those findings as statically not reachable from the application entry point. Under the proposed reachability-adjusted scoring model, aggregate CVSS-weighted exposure was reduced from 60.2 to 23.2 — a 61.5% exposure re-weighting reduction.
+
+> This metric quantifies how method-level reachability changes vulnerability prioritisation under the scoring model. It is not a claim that real-world attack probability was reduced by 61.5%.
 
 ---
 
@@ -36,6 +44,8 @@ Package-level vulnerability scanners (e.g., Dependabot, OWASP Dependency-Check) 
 | L4 | RUNTIME_OBSERVED | The vulnerable method was observed executing during testing |
 | L5 | AUDITED | A human security engineer has reviewed and confirmed the finding |
 
+> **L2 in NOT_REACHABLE findings**: when a finding carries `evidence_level: 2`, it means the seed method was successfully identified (SEED_IDENTIFIED) but no call path from the application entry points to that method was found in the static call graph. The decision `not_affected_candidate` is therefore a statement about the *absence of a static path*, not a confirmed absence of risk.
+
 ---
 
 ## CVE Coverage
@@ -51,7 +61,7 @@ Package-level vulnerability scanners (e.g., Dependabot, OWASP Dependency-Check) 
 
 ## Evaluation Matrix
 
-The core claim of this tool is that method-level reachability produces fewer false positives than package-level scanners. The table below tests this systematically: for each CVE, one application actively uses the vulnerable method (`vulnerable-*-demo`) and one uses the same dependency without calling it (`safe-*-demo`).
+Package-level scanners over-approximate: they report every (app, CVE) pair where the vulnerable dependency version is present, regardless of whether the vulnerable code path is reachable. The table below tests where method-level reachability narrows that set: for each CVE, one application actively uses the vulnerable method (`vulnerable-*-demo`) and one uses the same dependency version without calling it (`safe-*-demo`).
 
 | CVE | App | Dep version | This tool | Dependabot / OWASP DC | Correct? |
 |-----|-----|-------------|-----------|----------------------|---------|
@@ -65,10 +75,10 @@ The core claim of this tool is that method-level reachability produces fewer fal
 | CVE-2018-1002200 | safe-plexus-demo | plexus-archiver 3.5 | L2 NOT_REACHABLE (risk=0.6) | VULNERABLE | ✓ TN (pkg FP) |
 
 **Summary (8 test cases, 4 CVE × 2 apps):**
-- This tool: 8/8 correct (4 true positives, 4 true negatives)
-- Package-level scanners: 4/8 correct (4 true positives, 4 false positives — all safe demos flagged as VULNERABLE)
+- This tool: 4 findings statically reachable, 4 statically not reachable under method-level ground truth
+- Package-level scanners: all 8 reported at full CVSS; 4 of those cases have no static call path to the seeded vulnerable method
 
-> Ground truth: REACHABLE = the demo application's entry point directly or transitively calls the seeded vulnerable method (verified by call graph inspection). NOT_REACHABLE = the application never imports or instantiates the vulnerable class.
+> Ground truth: REACHABLE = the demo application's entry point directly or transitively calls the seeded vulnerable method (verified by call graph inspection). NOT_REACHABLE means no path exists from the configured application entry points to the seeded vulnerable method in the extracted static call graph.
 
 **Reachability-adjusted exposure reduction** (`python scripts/risk_reduction.py`):
 
@@ -104,7 +114,7 @@ Existing tools for open-source dependency vulnerability management fall into two
 
 **Snyk** introduced a reachability feature for Java Maven projects (paid tier, ~2020). However, the feature covers a limited vulnerability pattern set, produces neither VEX output nor an audit trail, and is not designed around the CRA evidence model.
 
-**Joern** [5] and **CodeQL** [6] operate at method or data-flow level and can express reachability as custom queries. Both require non-trivial per-CVE query authoring, produce no VEX output, and are not structured for CRA conformity assessment. CodeQL's SARIF output is accepted by some compliance frameworks but is not the VEX format expected by CRA conformity assessors.
+**Joern** [5] and **CodeQL** [6] operate at method or data-flow level and can express reachability as custom queries. Both require non-trivial per-CVE query authoring, produce no VEX output, and are not structured for CRA conformity assessment. CodeQL produces SARIF rather than VEX-style exploitability statements; additional transformation would be required for VEX-oriented vulnerability status reporting.
 
 This work differs along four axes: (1) it combines static BFS reachability with runtime OpenTelemetry trace evidence under a unified L0–L5 evidence ladder, directly addressing the limitation Shen et al. acknowledge — "checking whether the vulnerable condition can be satisfied requires dynamic information, which is hard to obtain and not scalable"; (2) CHA (Class Hierarchy Analysis) is applied explicitly via BFS over both EXTENDS and IMPLEMENTS edges, covering interface-extends-interface chains that Shen et al. identify as a precision gap in prior work; (3) it produces CycloneDX 1.5 VEX with per-finding `not_affected_justification` and `residual_risk_reason`; (4) the `AuditRecord` structure and `analysis_fingerprint` are designed to satisfy the independently-verifiable conformity evidence requirement implied by CRA Article 13(4). The scope of this work is complementary to Shen et al. [7]: they study vulnerability propagation breadth across 1,280 real client projects (ecosystem scale); this work focuses on depth and compliance auditability for a single project under analysis.
 
@@ -466,7 +476,7 @@ This tool is designed to produce evidence suitable for EU Cyber Resilience Act (
 - **`analysis_fingerprint`** makes each report reproducible: given the same callgraph file and seed, the result is verifiable.
 - **`--output-vex`** produces a CycloneDX 1.5 VEX document. VEX is the standard format for per-CVE exploitability status and is directly consumable by conformity assessors.
 - **`AuditRecord`** (populated at L5) captures reviewer identity, timestamp, justification, and waiver expiry — the chain-of-custody elements a conformity assessor will look for.
-- **`generated_at`** on a report containing an L4 AFFECTED finding is legally significant under CRA Article 14 (24-hour notification obligation for actively exploited vulnerabilities).
+- **`generated_at`** on a report containing an L4 AFFECTED finding can support time-sensitive vulnerability management workflows, including regulatory reporting obligations such as CRA Article 14 (24-hour notification for actively exploited vulnerabilities).
 - **`evidence_terms`** in seed candidate output are drawn from a predefined, CWE-keyed vocabulary — not a machine-learning model. Every term is traceable to a specific keyword match in the diff, satisfying the CRA requirement that conformity evidence be independently verifiable.
 
 ### Seed pipeline reproducibility boundary
@@ -486,8 +496,8 @@ External API calls (OSV, GitHub) only occur during seed preparation, never durin
 ## Limitations
 
 - Only Java bytecode is analyzed (no Kotlin, Scala, Groovy).
-- Reflection, `invokedynamic`, and runtime class loading are not modeled — a NOT_REACHABLE result has ~70% confidence, not 100%.
+- Reflection, `invokedynamic`, and runtime class loading are not modeled — a NOT_REACHABLE result should be interpreted as a not-affected candidate under the current analysis boundary, not as proof of absence of risk.
 - Runtime evidence only covers execution paths in the attached test suite.
-- CHA is conservative (sound but not complete): it may report REACHABLE for dispatch targets that are dead in practice.
+- CHA over-approximates polymorphic dispatch — it expands virtual calls to all known subtypes, which may include implementations never instantiated at runtime. The overall analysis is not sound: reflection, `invokedynamic`, and dynamic class loading can create call paths invisible to static analysis.
 - Light CVE mapping is a best-effort heuristic; all seeds should be reviewed by a security engineer before use in production.
 - Single-project analysis only. Ecosystem-scale analysis (Maven Central-wide) would require a persistent graph database backend; the BFS logic is designed to be storage-agnostic.
