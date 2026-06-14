@@ -5,7 +5,7 @@
       "chain_id": "CVE-2018-1002200::com.example:log4j-demo",
       "cve": "CVE-2018-1002200",
       "project": "com.example:log4j-demo",
-      "vulnerable_component": "org.codehaus.plexus:plexus-archiver:<=3.6.0",
+      "vulnerable_component": "org.codehaus.plexus:plexus-archiver:<3.6.0",
       "seed_method": "org.codehaus.plexus.archiver.AbstractUnArchiver.extractFile(Ljava/io/File;Ljava/io/File;Ljava/io/InputStream;Ljava/lang/String;Ljava/util/Date;ZLjava/lang/Integer;Ljava/lang/String;)V",
       "evidence_level": 2,
       "evidence_summary": {
@@ -48,7 +48,7 @@
         "upgrade_path": [
           {
             "artifact": "org.codehaus.plexus:plexus-archiver",
-            "from_version": "<=3.6.0",
+            "from_version": "<3.6.0",
             "to_version": "3.6.0"
           }
         ],
@@ -150,8 +150,8 @@
           "org.apache.logging.log4j.spi.AbstractLogger.logMessageTrackRecursion(Ljava/lang/String;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
           "org.apache.logging.log4j.spi.AbstractLogger.tryLogMessage(Ljava/lang/String;Ljava/lang/StackTraceElement;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
           "org.apache.logging.log4j.core.Logger.log(Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/Marker;Ljava/lang/String;Ljava/lang/StackTraceElement;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
-          "org.apache.logging.log4j.core.config.LockingReliabilityStrategy.log(Lorg/apache/logging/log4j/util/Supplier;Ljava/lang/String;Ljava/lang/String;Ljava/lang/StackTraceElement;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
-          "org.apache.logging.log4j.core.config.LoggerConfig.log(Ljava/lang/String;Ljava/lang/String;Ljava/lang/StackTraceElement;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
+          "org.apache.logging.log4j.core.config.DefaultReliabilityStrategy.log(Lorg/apache/logging/log4j/util/Supplier;Ljava/lang/String;Ljava/lang/String;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
+          "org.apache.logging.log4j.core.config.LoggerConfig.log(Ljava/lang/String;Ljava/lang/String;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
           "org.apache.logging.log4j.core.lookup.StrSubstitutor.replace(Lorg/apache/logging/log4j/core/LogEvent;Ljava/lang/String;)Ljava/lang/String;",
           "org.apache.logging.log4j.core.lookup.StrSubstitutor.substitute(Lorg/apache/logging/log4j/core/LogEvent;Ljava/lang/StringBuilder;II)Z",
           "org.apache.logging.log4j.core.lookup.StrSubstitutor.substitute(Lorg/apache/logging/log4j/core/LogEvent;Ljava/lang/StringBuilder;IILjava/util/List;)I",
@@ -192,11 +192,11 @@
             "edge_type": "CHA_EXPANSION[org.apache.logging.log4j.spi.AbstractLogger->org.apache.logging.log4j.core.Logger]"
           },
           {
-            "sig": "org.apache.logging.log4j.core.config.LockingReliabilityStrategy.log(Lorg/apache/logging/log4j/util/Supplier;Ljava/lang/String;Ljava/lang/String;Ljava/lang/StackTraceElement;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
-            "edge_type": "CHA_EXPANSION[org.apache.logging.log4j.core.config.LocationAwareReliabilityStrategy->org.apache.logging.log4j.core.config.LockingReliabilityStrategy]"
+            "sig": "org.apache.logging.log4j.core.config.DefaultReliabilityStrategy.log(Lorg/apache/logging/log4j/util/Supplier;Ljava/lang/String;Ljava/lang/String;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
+            "edge_type": "CHA_EXPANSION[org.apache.logging.log4j.core.config.ReliabilityStrategy->org.apache.logging.log4j.core.config.DefaultReliabilityStrategy]"
           },
           {
-            "sig": "org.apache.logging.log4j.core.config.LoggerConfig.log(Ljava/lang/String;Ljava/lang/String;Ljava/lang/StackTraceElement;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
+            "sig": "org.apache.logging.log4j.core.config.LoggerConfig.log(Ljava/lang/String;Ljava/lang/String;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
             "edge_type": "CALL"
           },
           {

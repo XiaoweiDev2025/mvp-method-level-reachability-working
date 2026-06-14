@@ -3,7 +3,7 @@
   "specVersion": "1.5",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-06-11T13:53:56.220589Z",
+    "timestamp": "2026-06-13T20:41:44.186537Z",
     "tools": [
       {
         "name": "vuln-risk-assessor",

@@ -30,6 +30,11 @@
         "uncertain_features": [
           "invokedynamic_not_modelled"
         ],
+        "residual_risk_reason": [
+          "reflection_not_modelled",
+          "invokedynamic_not_modelled",
+          "future_code_change_not_modelled"
+        ],
         "engine": "asm-callgraph-1.0"
       },
       "runtime": null,

@@ -5,12 +5,23 @@
       "chain_id": "CVE-2018-1002200::com.example:plexus-demo",
       "cve": "CVE-2018-1002200",
       "project": "com.example:plexus-demo",
-      "vulnerable_component": "org.codehaus.plexus:plexus-archiver:<=3.6.0",
+      "vulnerable_component": "org.codehaus.plexus:plexus-archiver:<3.6.0",
       "seed_method": "org.codehaus.plexus.archiver.AbstractUnArchiver.extractFile(Ljava/io/File;Ljava/io/File;Ljava/io/InputStream;Ljava/lang/String;Ljava/util/Date;ZLjava/lang/Integer;Ljava/lang/String;)V",
       "evidence_level": 3,
+      "evidence_summary": {
+        "dependency_match": true,
+        "static_reachable": true,
+        "runtime_observed": false,
+        "entry_points": [
+          "com.example.App.main([Ljava/lang/String;)V"
+        ],
+        "call_path_depth": 5,
+        "trace_ids": []
+      },
       "static": {
         "status": "reachable",
         "confidence": 0.9,
+        "analysis_fingerprint": "3d493aa00b6f7d09",
         "entry_points_used": [
           "com.example.App.main([Ljava/lang/String;)V"
         ],
@@ -21,6 +32,28 @@
           "org.codehaus.plexus.archiver.zip.AbstractZipUnArchiver.extractFileIfIncluded(Ljava/io/File;Ljava/io/File;Ljava/io/InputStream;Ljava/lang/String;Ljava/util/Date;ZLjava/lang/Integer;Ljava/lang/String;)V",
           "org.codehaus.plexus.archiver.AbstractUnArchiver.extractFile(Ljava/io/File;Ljava/io/File;Ljava/io/InputStream;Ljava/lang/String;Ljava/util/Date;ZLjava/lang/Integer;Ljava/lang/String;)V"
         ],
+        "call_path_annotated": [
+          {
+            "sig": "com.example.App.main([Ljava/lang/String;)V",
+            "edge_type": "ENTRY_POINT"
+          },
+          {
+            "sig": "org.codehaus.plexus.archiver.AbstractUnArchiver.extract()V",
+            "edge_type": "INHERITED"
+          },
+          {
+            "sig": "org.codehaus.plexus.archiver.zip.AbstractZipUnArchiver.execute()V",
+            "edge_type": "CHA_EXPANSION[org.codehaus.plexus.archiver.AbstractUnArchiver->org.codehaus.plexus.archiver.zip.AbstractZipUnArchiver]"
+          },
+          {
+            "sig": "org.codehaus.plexus.archiver.zip.AbstractZipUnArchiver.extractFileIfIncluded(Ljava/io/File;Ljava/io/File;Ljava/io/InputStream;Ljava/lang/String;Ljava/util/Date;ZLjava/lang/Integer;Ljava/lang/String;)V",
+            "edge_type": "CALL"
+          },
+          {
+            "sig": "org.codehaus.plexus.archiver.AbstractUnArchiver.extractFile(Ljava/io/File;Ljava/io/File;Ljava/io/InputStream;Ljava/lang/String;Ljava/util/Date;ZLjava/lang/Integer;Ljava/lang/String;)V",
+            "edge_type": "INHERITED"
+          }
+        ],
         "uncertain_features": [],
         "engine": "asm-callgraph-1.0"
       },
@@ -28,7 +61,22 @@
       "decision": "under_investigation",
       "decision_confidence": 0.6,
       "risk_score": 2.8,
-      "notes": "Static: reachable (conf=0.9) | Path depth: 5 hops"
+      "notes": "Static: reachable (conf=0.9) | Path depth: 5 hops",
+      "audit_record": null,
+      "remediation": {
+        "priority": "MONITOR",
+        "upgrade_path": [
+          {
+            "artifact": "org.codehaus.plexus:plexus-archiver",
+            "from_version": "<3.6.0",
+            "to_version": "3.6.0"
+          }
+        ],
+        "entry_point_in_your_code": "com.example.App.main([Ljava/lang/String;)V",
+        "fix_commit": "https://github.com/codehaus-plexus/plexus-archiver/commit/f8f4233508193b70df33759ae9dc6154d69c2ea8",
+        "effort_estimate": "LOW",
+        "notes": "No confirmed reachability. Increase test coverage to determine actual exposure, or upgrade when convenient."
+      }
     },
     {
       "chain_id": "CVE-2021-29425::com.example:plexus-demo",
@@ -37,13 +85,25 @@
       "vulnerable_component": "commons-io:commons-io:>=2.0,<2.7",
       "seed_method": "org.apache.commons.io.FilenameUtils.getPrefixLength(Ljava/lang/String;)I",
       "evidence_level": 2,
+      "evidence_summary": {
+        "dependency_match": true,
+        "static_reachable": false,
+        "runtime_observed": false,
+        "entry_points": [
+          "com.example.App.main([Ljava/lang/String;)V"
+        ],
+        "call_path_depth": 0,
+        "trace_ids": []
+      },
       "static": {
         "status": "not_reachable",
         "confidence": 0.7,
+        "analysis_fingerprint": "3d493aa00b6f7d09",
         "entry_points_used": [
           "com.example.App.main([Ljava/lang/String;)V"
         ],
         "call_path": [],
+        "call_path_annotated": [],
         "uncertain_features": [
           "invokedynamic_not_modelled"
         ],
@@ -53,7 +113,22 @@
       "decision": "not_affected_candidate",
       "decision_confidence": 0.595,
       "risk_score": 0.5,
-      "notes": "Static: not_reachable (conf=0.7) | Uncertain features: ['invokedynamic_not_modelled']"
+      "notes": "Static: not_reachable (conf=0.7) | Uncertain features: ['invokedynamic_not_modelled']",
+      "audit_record": null,
+      "remediation": {
+        "priority": "MONITOR",
+        "upgrade_path": [
+          {
+            "artifact": "commons-io:commons-io",
+            "from_version": ">=2.0,<2.7",
+            "to_version": "2.7"
+          }
+        ],
+        "entry_point_in_your_code": "",
+        "fix_commit": "https://github.com/apache/commons-io/commit/a15460595e82897910b28236ebf11a0e7bb4ddc3",
+        "effort_estimate": "LOW",
+        "notes": "No confirmed reachability. Increase test coverage to determine actual exposure, or upgrade when convenient."
+      }
     },
     {
       "chain_id": "CVE-2021-44228::com.example:plexus-demo",
@@ -62,13 +137,25 @@
       "vulnerable_component": "org.apache.logging.log4j:log4j-core:>=2.0-beta9,<2.15.0",
       "seed_method": "org.apache.logging.log4j.core.lookup.JndiLookup.lookup(Lorg/apache/logging/log4j/core/LogEvent;Ljava/lang/String;)Ljava/lang/String;",
       "evidence_level": 2,
+      "evidence_summary": {
+        "dependency_match": true,
+        "static_reachable": false,
+        "runtime_observed": false,
+        "entry_points": [
+          "com.example.App.main([Ljava/lang/String;)V"
+        ],
+        "call_path_depth": 0,
+        "trace_ids": []
+      },
       "static": {
         "status": "not_reachable",
         "confidence": 0.7,
+        "analysis_fingerprint": "3d493aa00b6f7d09",
         "entry_points_used": [
           "com.example.App.main([Ljava/lang/String;)V"
         ],
         "call_path": [],
+        "call_path_annotated": [],
         "uncertain_features": [
           "invokedynamic_not_modelled"
         ],
@@ -78,7 +165,22 @@
       "decision": "not_affected_candidate",
       "decision_confidence": 0.595,
       "risk_score": 1.0,
-      "notes": "Static: not_reachable (conf=0.7) | Uncertain features: ['invokedynamic_not_modelled']"
+      "notes": "Static: not_reachable (conf=0.7) | Uncertain features: ['invokedynamic_not_modelled']",
+      "audit_record": null,
+      "remediation": {
+        "priority": "MONITOR",
+        "upgrade_path": [
+          {
+            "artifact": "org.apache.logging.log4j:log4j-core",
+            "from_version": ">=2.0-beta9,<2.15.0",
+            "to_version": "2.15.0"
+          }
+        ],
+        "entry_point_in_your_code": "",
+        "fix_commit": "https://github.com/apache/logging-log4j2/commit/c77b3cb",
+        "effort_estimate": "LOW",
+        "notes": "No confirmed reachability. Increase test coverage to determine actual exposure, or upgrade when convenient."
+      }
     }
   ],
   "summary": {
