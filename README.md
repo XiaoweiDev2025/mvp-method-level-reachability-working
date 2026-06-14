@@ -68,6 +68,20 @@ The core claim of this tool is that method-level reachability produces fewer fal
 
 > Ground truth: REACHABLE = the demo application's entry point directly or transitively calls the seeded vulnerable method (verified by call graph inspection). NOT_REACHABLE = the application never imports or instantiates the vulnerable class.
 
+**Aggregate risk reduction** (`python scripts/risk_reduction.py`):
+
+| Metric | Value |
+|--------|-------|
+| Aggregate risk — package-level scanner | 49.9 (sum of CVSS scores, all 6 flagged) |
+| Aggregate risk — method-level (this tool) | 22.1 (CVSS × evidence multiplier) |
+| **Risk reduction** | **55.7%** |
+| Package-scanner false positives | 2 / 6 (33%) |
+| L4 runtime-confirmed findings | 1 / 6 (Log4Shell with OTel trace) |
+
+> "Method-level analysis reduced aggregate risk exposure by **56%** compared to package-level scanning across our 6-application evaluation dataset (2 of 6 package-scanner alerts were false positives)."
+
+Note: risk_score for NOT_REACHABLE findings is not zero — it is CVSS × 0.10 to reflect residual uncertainty (reflection, invokedynamic, and other dynamic features not modelled by static analysis).
+
 ---
 
 ## Architecture
