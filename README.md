@@ -221,7 +221,9 @@ candidate_methods:          # NOT vulnerable_methods — requires manual promoti
 
 ---
 
-## Running the Three Demo CVEs
+## Running the Demo Projects
+
+### Vulnerable apps (expected: REACHABLE)
 
 **Log4Shell** (L4 — runtime observed):
 ```bash
@@ -232,6 +234,15 @@ python analyzer/pipeline.py \
   --trace-log data/traces/run1.log \
   --output reports/log4j.json \
   --output-vex reports/log4j.vex.json
+```
+
+**Text4Shell** (L3 — static reachable, no trace):
+```bash
+python analyzer/pipeline.py \
+  --project-jars demo-projects/vulnerable-text4shell-demo/target \
+  --project-artifact com.example:vulnerable-text4shell-demo \
+  --callgraph-cache data/callgraph-text4shell-vuln.txt \
+  --output reports/text4shell-vuln.json --cve CVE-2022-42889
 ```
 
 **Zip-Slip** (L3 — static reachable, no trace):
@@ -250,6 +261,65 @@ python analyzer/pipeline.py \
   --project-artifact com.example:commons-io-demo \
   --callgraph-cache data/callgraph-commons-io.txt \
   --output reports/commons-io.json
+```
+
+### Safe apps — same dep version, different code path (expected: NOT_REACHABLE)
+
+```bash
+python analyzer/pipeline.py \
+  --project-jars demo-projects/safe-log4j-demo/target \
+  --project-artifact com.example:safe-log4j-demo \
+  --callgraph-cache data/callgraph-safe-log4j.txt \
+  --output reports/safe-log4j.json --cve CVE-2021-44228
+
+python analyzer/pipeline.py \
+  --project-jars demo-projects/safe-text4shell-demo/target \
+  --project-artifact com.example:safe-text4shell-demo \
+  --callgraph-cache data/callgraph-text4shell-safe.txt \
+  --output reports/text4shell-safe.json --cve CVE-2022-42889
+
+python analyzer/pipeline.py \
+  --project-jars demo-projects/safe-commons-io-demo/target \
+  --project-artifact com.example:safe-commons-io-demo \
+  --callgraph-cache data/callgraph-commons-io-safe.txt \
+  --output reports/commons-io-safe.json --cve CVE-2021-29425
+
+python analyzer/pipeline.py \
+  --project-jars demo-projects/safe-plexus-demo/target \
+  --project-artifact com.example:safe-plexus-demo \
+  --callgraph-cache data/callgraph-plexus-safe.txt \
+  --output reports/plexus-safe.json --cve CVE-2018-1002200
+```
+
+### Reflection false negative demo (expected: NOT_REACHABLE — known analysis limitation)
+
+```bash
+python analyzer/pipeline.py \
+  --project-jars demo-projects/reflection-log4j-demo/target \
+  --project-artifact com.example:reflection-log4j-demo \
+  --callgraph-cache data/callgraph-reflection-log4j.txt \
+  --output reports/reflection-log4j.json --cve CVE-2021-44228
+```
+
+This app invokes `Logger.error()` entirely through `Class.forName()` + `Method.invoke()`.
+The ASM extractor records only static bytecode edges and cannot follow runtime dispatch
+through reflection. The pipeline reports `not_affected_candidate` — a **false negative**:
+the vulnerable method is reachable at runtime if the input contains `${jndi:...}`.
+
+The `static.residual_risk_reason` field in the output documents why NOT_REACHABLE retains
+a residual weight of 0.10 rather than zero:
+```json
+"residual_risk_reason": [
+  "reflection_not_modelled",
+  "invokedynamic_not_modelled",
+  "future_code_change_not_modelled"
+]
+```
+
+### Reachability-adjusted exposure metric
+
+```bash
+python scripts/risk_reduction.py
 ```
 
 ---
