@@ -86,6 +86,46 @@ The core claim of this tool is that method-level reachability produces fewer fal
 
 ---
 
+## Related Work
+
+Existing tools for open-source dependency vulnerability management fall into two broad categories: package-level scanners and method-level static analyzers. This work sits between them, and adds a runtime evidence tier absent from both.
+
+| Tool | Analysis level | Reachability | Runtime trace | VEX output | Audit chain | CRA-targeted |
+|------|---------------|-------------|--------------|------------|-------------|-------------|
+| OWASP Dependency-Check [1] | Package (JAR) | None | — | — | — | — |
+| GitHub Dependabot [2] | Package | None | — | — | — | — |
+| Google OSV-Scanner [3] | Package | None | — | — | — | — |
+| Snyk (paid tier) [4] | Package + partial method | Static (limited, Java) | — | — | — | — |
+| Joern [5] | Method (CPG) | Custom QL queries | — | — | — | — |
+| CodeQL [6] | Method (data flow) | Taint tracking | — | SARIF | — | — |
+| **This work** | **Method (bytecode BFS+CHA)** | **Static + Runtime (OTel)** | **✓** | **CycloneDX 1.5** | **✓ (L5)** | **✓** |
+
+**Package-level scanners** (Dependency-Check, Dependabot, OSV-Scanner) flag every dependency version that appears in a vulnerability database, regardless of whether the vulnerable code path is reachable from the application. Our 8-case evaluation matrix shows that 4 of 8 such alerts are statically unreachable — a 50% over-approximation rate on this dataset.
+
+**Snyk** introduced a reachability feature for Java Maven projects (paid tier, ~2020). However, the feature covers a limited vulnerability pattern set, produces neither VEX output nor an audit trail, and is not designed around the CRA evidence model.
+
+**Joern** [5] and **CodeQL** [6] operate at method or data-flow level and can express reachability as custom queries. Both require non-trivial per-CVE query authoring, produce no VEX output, and are not structured for CRA conformity assessment. CodeQL's SARIF output is accepted by some compliance frameworks but is not the VEX format expected by CRA conformity assessors.
+
+This work differs along three axes: (1) it combines static BFS reachability with runtime OpenTelemetry trace evidence under a unified L0–L5 evidence ladder; (2) it produces CycloneDX 1.5 VEX with per-finding `not_affected_justification` and `residual_risk_reason`; (3) the `AuditRecord` structure and `analysis_fingerprint` are designed to satisfy the independently-verifiable conformity evidence requirement implied by CRA Article 13(4). The closest published antecedent is Shen et al. [7] (ESE 2025), whose method-level reachability model this work extends with runtime evidence integration and CRA-specific output structure.
+
+**References**
+
+[1] OWASP Foundation. *OWASP Dependency-Check*. https://owasp.org/www-project-dependency-check/
+
+[2] GitHub. *Dependabot documentation*. https://docs.github.com/en/code-security/dependabot
+
+[3] Google. *OSV-Scanner*. https://google.github.io/osv-scanner/
+
+[4] Snyk Ltd. *Reachable vulnerabilities*. https://docs.snyk.io/scan-using-snyk/snyk-open-source/manage-vulnerabilities/reachable-vulnerabilities
+
+[5] Yamaguchi, F. et al. *Modeling and Discovering Vulnerabilities with Code Property Graphs.* IEEE S&P 2014.
+
+[6] GitHub / Semmle. *CodeQL*. https://codeql.github.com/
+
+[7] Shen, X. et al. *Beyond Package-Level: Method-Level Vulnerability Reachability Analysis.* ESE 2025.
+
+---
+
 ## Architecture
 
 ```
