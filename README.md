@@ -4,7 +4,7 @@ A prototype tool for assessing whether known vulnerable methods in Java Maven de
 
 Inspired by: *Shen et al., "Beyond Package-Level: Method-Level Vulnerability Reachability Analysis," ESE 2025.*
 
-Designed with EU Cyber Resilience Act (CRA) compliance in mind: the output is structured to serve as evidence in a conformity assessment, not just a scan result.
+Designed with EU Cyber Resilience Act (CRA)-oriented vulnerability management in mind: the output is structured to support evidence-based conformity assessment workflows, not just produce a scan result.
 
 ---
 
@@ -16,7 +16,7 @@ Package-level vulnerability scanners (e.g., Dependabot, OWASP Dependency-Check) 
 
 ## Key Result
 
-Across 8 app-CVE evaluation cases covering 4 CVEs and their safe variants, package-level scanners would report all 8 applications as vulnerable (affected dependency version present). This prototype classified 4 of those findings as statically not reachable from the application entry point. Under the proposed reachability-adjusted scoring model, aggregate CVSS-weighted exposure was reduced from 60.2 to 23.2 — a 61.5% exposure re-weighting reduction.
+Across 8 app-CVE evaluation cases covering 4 CVEs and their safe variants, package-level scanners would report all 8 applications as vulnerable (affected dependency version present). This prototype classified 4 of those findings as statically not reachable from the configured application entry points. Under the proposed reachability-adjusted scoring model, aggregate CVSS-weighted exposure was reduced from 60.2 to 23.2 — a 61.5% exposure re-weighting reduction.
 
 > This metric quantifies how method-level reachability changes vulnerability prioritisation under the scoring model. It is not a claim that real-world attack probability was reduced by 61.5%.
 
@@ -67,11 +67,11 @@ Package-level scanners over-approximate: they report every (app, CVE) pair where
 |-----|-----|-------------|----------------------|-----------|----------------------|
 | CVE-2021-44228 | vulnerable-log4j-demo | log4j-core 2.14.1 | VULNERABLE | L4 AFFECTED (risk=10.0) | Reachable vulnerable method |
 | CVE-2021-44228 | safe-log4j-demo | log4j-core 2.14.1 | VULNERABLE | L2 NOT_REACHABLE (risk=1.0) | Package-level alert; method not statically reachable |
-| CVE-2022-42889 | vulnerable-text4shell-demo | commons-text 1.9 | VULNERABLE | L3 REACHABLE (risk=4.9) | Reachable vulnerable method |
+| CVE-2022-42889 | vulnerable-text4shell-demo | commons-text 1.9 | VULNERABLE | L3 UNDER_INVESTIGATION (risk=4.9) | Reachable vulnerable method |
 | CVE-2022-42889 | safe-text4shell-demo | commons-text 1.9 | VULNERABLE | L2 NOT_REACHABLE (risk=1.0) | Package-level alert; method not statically reachable |
-| CVE-2021-29425 | commons-io-demo | commons-io 2.6 | VULNERABLE | L3 REACHABLE (risk=2.4) | Reachable vulnerable method |
+| CVE-2021-29425 | commons-io-demo | commons-io 2.6 | VULNERABLE | L3 UNDER_INVESTIGATION (risk=2.4) | Reachable vulnerable method |
 | CVE-2021-29425 | safe-commons-io-demo | commons-io 2.6 | VULNERABLE | L2 NOT_REACHABLE (risk=0.5) | Package-level alert; method not statically reachable |
-| CVE-2018-1002200 | plexus-demo | plexus-archiver 3.5 | VULNERABLE | L3 REACHABLE (risk=2.8) | Reachable vulnerable method |
+| CVE-2018-1002200 | plexus-demo | plexus-archiver 3.5 | VULNERABLE | L3 UNDER_INVESTIGATION (risk=2.8) | Reachable vulnerable method |
 | CVE-2018-1002200 | safe-plexus-demo | plexus-archiver 3.5 | VULNERABLE | L2 NOT_REACHABLE (risk=0.6) | Package-level alert; method not statically reachable |
 
 **Summary (8 test cases, 4 CVE × 2 apps):**
@@ -108,7 +108,7 @@ Existing tools for open-source dependency vulnerability management fall into two
 | Snyk (paid tier) [4] | Package + partial method | Static (limited, Java) | — | — | — | — |
 | Joern [5] | Method (CPG) | Custom QL queries | — | — | — | — |
 | CodeQL [6] | Method (data flow) | Taint tracking | — | SARIF | — | — |
-| **This work** | **Method (bytecode BFS+CHA)** | **Static + Runtime (OTel)** | **✓** | **CycloneDX 1.5** | **✓ (L5)** | **✓** |
+| **This work** | **Method (bytecode BFS+CHA)** | **Static + Runtime (OTel)** | **✓** | **CycloneDX 1.5 VEX-style** | **✓ (L5)** | **✓** |
 
 **Package-level scanners** (Dependency-Check, Dependabot, OSV-Scanner) flag every dependency version that appears in a vulnerability database, regardless of whether the vulnerable code path is reachable from the application. Our 8-case evaluation matrix shows that 4 of 8 such alerts are statically unreachable — a 50% over-approximation rate on this dataset.
 
@@ -116,7 +116,7 @@ Existing tools for open-source dependency vulnerability management fall into two
 
 **Joern** [5] and **CodeQL** [6] operate at method or data-flow level and can express reachability as custom queries. Both require non-trivial per-CVE query authoring, produce no VEX output, and are not structured for CRA conformity assessment. CodeQL produces SARIF rather than VEX-style exploitability statements; additional transformation would be required for VEX-oriented vulnerability status reporting.
 
-This work differs along four axes: (1) it combines static BFS reachability with runtime OpenTelemetry trace evidence under a unified L0–L5 evidence ladder, directly addressing the limitation Shen et al. acknowledge — "checking whether the vulnerable condition can be satisfied requires dynamic information, which is hard to obtain and not scalable"; (2) CHA (Class Hierarchy Analysis) is applied explicitly via BFS over both EXTENDS and IMPLEMENTS edges, covering interface-extends-interface chains that Shen et al. identify as a precision gap in prior work; (3) it produces CycloneDX 1.5 VEX with per-finding `not_affected_justification` and `residual_risk_reason`; (4) the `AuditRecord` structure and `analysis_fingerprint` are designed to satisfy the independently-verifiable conformity evidence requirement implied by CRA Article 13(4). The scope of this work is complementary to Shen et al. [7]: they study vulnerability propagation breadth across 1,280 real client projects (ecosystem scale); this work focuses on depth and compliance auditability for a single project under analysis.
+This work differs along four axes: (1) it combines static BFS reachability with runtime OpenTelemetry trace evidence under a unified L0–L5 evidence ladder, addressing a limitation discussed by Shen et al.: determining whether vulnerable conditions are satisfied often requires dynamic information, which is difficult to obtain at scale; (2) CHA (Class Hierarchy Analysis) is applied explicitly via BFS over both EXTENDS and IMPLEMENTS edges, covering interface-extends-interface chains that Shen et al. identify as a precision gap in prior work; (3) it produces CycloneDX 1.5 VEX-style output with per-finding `not_affected_justification` and `residual_risk_reason`; (4) the `AuditRecord` structure and `analysis_fingerprint` are designed to support independently verifiable conformity evidence in CRA-oriented workflows. The scope of this work is complementary to Shen et al. [7]: they study vulnerability propagation breadth across 1,280 real client projects (ecosystem scale); this work focuses on depth and compliance auditability for a single project under analysis.
 
 **References**
 
@@ -475,7 +475,7 @@ This tool is designed to produce evidence suitable for EU Cyber Resilience Act (
 - **`analysis_fingerprint`** makes each report reproducible: given the same callgraph file and seed, the result is verifiable.
 - **`--output-vex`** produces a CycloneDX 1.5 VEX document. VEX is a machine-readable format for communicating per-CVE exploitability status and can support vulnerability management and conformity-assessment workflows.
 - **`AuditRecord`** (populated at L5) captures reviewer identity, timestamp, justification, and waiver expiry — the chain-of-custody elements a conformity assessor will look for.
-- **`generated_at`** on a report containing an L4 AFFECTED finding can support time-sensitive vulnerability management workflows, including regulatory reporting obligations such as CRA Article 14 (24-hour notification for actively exploited vulnerabilities).
+- **`generated_at`** on a report containing an L4 AFFECTED finding can support time-sensitive vulnerability management and regulatory reporting workflows.
 - **`evidence_terms`** in seed candidate output are drawn from a predefined, CWE-keyed vocabulary — not a machine-learning model. Every term is traceable to a specific keyword match in the diff, supporting independently verifiable conformity evidence.
 
 ### Seed pipeline reproducibility boundary
