@@ -68,19 +68,19 @@ The core claim of this tool is that method-level reachability produces fewer fal
 
 > Ground truth: REACHABLE = the demo application's entry point directly or transitively calls the seeded vulnerable method (verified by call graph inspection). NOT_REACHABLE = the application never imports or instantiates the vulnerable class.
 
-**Aggregate risk reduction** (`python scripts/risk_reduction.py`):
+**Reachability-adjusted exposure reduction** (`python scripts/risk_reduction.py`):
 
 | Metric | Value |
 |--------|-------|
-| Aggregate risk — package-level scanner | 49.9 (sum of CVSS scores, all 6 flagged) |
-| Aggregate risk — method-level (this tool) | 22.1 (CVSS × evidence multiplier) |
-| **Risk reduction** | **55.7%** |
-| Package-scanner false positives | 2 / 6 (33%) |
+| Aggregate CVSS-weighted exposure — package-level | 49.9 (all 6 findings at full CVSS) |
+| Aggregate reachability-adjusted exposure — this tool | 22.1 (CVSS × evidence multiplier) |
+| **Exposure re-weighting reduction** | **55.7%** |
+| Statically-unreachable findings | 2 / 6 (33%) |
 | L4 runtime-confirmed findings | 1 / 6 (Log4Shell with OTel trace) |
 
-> "Method-level analysis reduced aggregate risk exposure by **56%** compared to package-level scanning across our 6-application evaluation dataset (2 of 6 package-scanner alerts were false positives)."
+> "Reachability analysis reduced aggregate CVSS-weighted exposure by **56%** relative to package-level scanning across our 6-application evaluation dataset, by assigning a residual weight of 0.10 to statically-unreachable findings to account for analysis uncertainty (2 of 6 package-scanner alerts were statically unreachable)."
 
-Note: risk_score for NOT_REACHABLE findings is not zero — it is CVSS × 0.10 to reflect residual uncertainty (reflection, invokedynamic, and other dynamic features not modelled by static analysis).
+**On the evidence multipliers:** The values (1.00 / 0.50 / 0.10) are design parameters, not CVSS-official standards. The 0.10 residual for NOT_REACHABLE findings is intentionally non-zero: it represents two sources of analysis uncertainty — (1) static analysis does not model reflection, `invokedynamic`, or dynamic class loading; (2) a method unreachable today may become reachable after a future refactor. This metric therefore quantifies *reachability-adjusted exposure re-weighting*, not a reduction in real-world attack probability. The specific multiplier values should be calibrated against a labelled exploit dataset in future work.
 
 ---
 

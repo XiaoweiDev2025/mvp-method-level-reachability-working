@@ -20,11 +20,19 @@ Decision rules (applied in priority order):
   5. Static=UNKNOWN                           → L2  UNDER_INVESTIGATION conf=0.50
   6. No static evidence at all                → L2  UNDER_INVESTIGATION conf=0.30
 
-Risk score: base_cvss × evidence_multiplier
-  L4 AFFECTED:            full CVSS
+Reachability-adjusted exposure score: base_cvss × evidence_multiplier
+  L4 AFFECTED:            CVSS × 1.00
   L3 LIKELY_AFFECTED:     CVSS × 0.75
-  L2 NOT_AFFECTED_CAND.:  CVSS × 0.10   (not zero: seed exists, analysis incomplete)
+  L2 NOT_AFFECTED_CAND.:  CVSS × 0.10
   L2 UNDER_INVESTIGATION: CVSS × 0.50
+
+Evidence multipliers are design parameters, not natural laws.
+The 0.10 residual for NOT_REACHABLE reflects two sources of analysis
+uncertainty: (1) static analysis is incomplete — reflection,
+invokedynamic, and dynamic class loading are not modelled; (2) code
+evolves — a method unreachable today may become reachable after a
+refactor. The specific value 0.10 is conservative and should be
+calibrated against a labelled exploit dataset in future work.
 """
 
 from __future__ import annotations

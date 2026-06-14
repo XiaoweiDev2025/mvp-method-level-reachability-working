@@ -1,17 +1,24 @@
 """
-Risk reduction metric: method-level vs package-level scanning.
+Reachability-adjusted exposure reduction metric.
 
-Computes aggregate risk exposure under two models:
-  - Package-level scanner: every app that contains the vulnerable dep
-    is reported at full CVSS severity (100% of CVSS, regardless of
-    whether the vulnerable code path is actually called).
-  - Method-level (this tool): uses the pipeline's actual risk_score,
-    which is CVSS × evidence_multiplier (0.10 for NOT_REACHABLE,
-    0.50 for UNDER_INVESTIGATION, 1.00 for AFFECTED).
+Compares aggregate CVSS-weighted exposure under two models:
+  - Package-level scanner: every (app, CVE) pair where the vulnerable
+    dep is present is reported at full CVSS (no reachability info).
+  - Method-level (this tool): uses the pipeline's reachability-adjusted
+    risk_score = CVSS × evidence_multiplier, where:
+      NOT_REACHABLE       → × 0.10  (residual uncertainty, not zero)
+      UNDER_INVESTIGATION → × 0.50
+      AFFECTED            → × 1.00
 
-Only (app, CVE) pairs where the vulnerable dependency is actually in
-the app's classpath are counted — cross-CVE findings from the pipeline
-running all seeds against every project are excluded.
+The multipliers are design parameters, not natural laws.  The 0.10
+residual for NOT_REACHABLE represents analysis uncertainty: reflection,
+invokedynamic, and dynamic class loading are not modelled by static
+analysis, and unreachable code today may become reachable after a
+refactor.  This metric therefore measures reachability-adjusted exposure
+re-weighting, not a reduction in real-world attack probability.
+
+Only (app, CVE) pairs where the vulnerable dep is in the app's classpath
+are counted.  Cross-CVE pipeline outputs are excluded.
 
 Usage:
   python scripts/risk_reduction.py
@@ -112,15 +119,16 @@ def main() -> None:
     print(f"  Not reach : {n_not_reachable}  ({n_not_reachable/n*100:.0f}%) — these are pkg-scanner false positives")
     print(f"  Confirmed : {n_affected}  (L4 runtime-observed)")
     print()
-    print(f"Aggregate risk (package-level) : {pkg_total:.1f}")
-    print(f"Aggregate risk (method-level)  : {ml_total:.1f}")
-    print(f"Risk reduction                 : {reduction:.1f}%")
+    print(f"Aggregate CVSS-weighted exposure (package-level) : {pkg_total:.1f}")
+    print(f"Aggregate reachability-adjusted exposure         : {ml_total:.1f}")
+    print(f"Exposure re-weighting reduction                  : {reduction:.1f}%")
     print()
     print(
-        f'Headline: "Method-level analysis reduced aggregate risk exposure by '
-        f'{reduction:.0f}% compared to package-level scanning '
-        f'across our {n}-application evaluation dataset '
-        f'({n_not_reachable} of {n} package-scanner alerts were false positives)."'
+        f'Headline: "Reachability analysis reduced aggregate CVSS-weighted exposure by '
+        f'{reduction:.0f}% relative to package-level scanning across our '
+        f'{n}-application evaluation dataset, by assigning a residual weight of 0.10 '
+        f'to statically-unreachable findings to account for analysis uncertainty '
+        f'({n_not_reachable} of {n} package-scanner alerts were statically unreachable)."'
     )
 
 
