@@ -159,7 +159,11 @@ data/
   callgraph-*.txt       Pre-computed call graphs (cached)
   traces/               OTel span logs from demo runs
 reports/                JSON + VEX risk reports (generated output)
+docs/
+  SDD-v1.0.pdf          Software Design Document (system design, data model, module pseudocode)
 ```
+
+> **Implementation note (SDD vs. actual code):** The SDD (Section 4.1.3) lists WALA, Soot, and SootUp as candidate static analysis frameworks. The implementation instead uses a custom ASM-based call graph extractor (`tools/callgraph-extractor/`) with a lightweight Python BFS engine. This choice was made during implementation to avoid JVM tool startup overhead and to allow precise control over edge types (CALL / EXTENDS / IMPLEMENTS) needed for the annotated call path feature. The design intent — bytecode-level CHA + BFS reachability — is unchanged.
 
 ---
 
