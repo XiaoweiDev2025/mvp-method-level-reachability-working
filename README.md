@@ -724,3 +724,13 @@ Each finding explains *why* the decision was reached:
 ```
 
 The `audit_record` field is populated when a security engineer promotes a finding to L5 AUDITED.
+
+---
+
+## AI Assistance Disclosure
+
+AI tools, including Claude, were used during this project as development aids for code drafting, debugging support, documentation editing, and implementation planning.
+
+The project concept, research framing, architecture, evaluation design, evidence model, risk-scoring interpretation, CRA/VEX compliance orientation, validation decisions, and final review were directed and approved by the author. All generated code and text were manually reviewed, tested, revised, and integrated by the author.
+
+AI assistance should therefore be understood as tool-supported implementation assistance, not as independent authorship or a substitute for human design, validation, or academic responsibility.
