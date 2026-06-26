@@ -731,6 +731,6 @@ The `audit_record` field is populated when a security engineer promotes a findin
 
 AI tools, including Claude, were used during this project as development aids for code drafting, debugging support, documentation editing, and implementation planning.
 
-The project concept, research framing, architecture, evaluation design, evidence model, risk-scoring interpretation, CRA/VEX compliance orientation, validation decisions, and final review were directed and approved by the author. All generated code and text were manually reviewed, tested, revised, and integrated by the author.
+The research question, system design, evidence model, evaluation methodology, and interpretation of results were conceived and directed by the author. All generated code and text were manually reviewed, tested, revised, and integrated by the author. AI co-authorship is reflected in the repository's commit history.
 
 AI assistance should therefore be understood as tool-supported implementation assistance, not as independent authorship or a substitute for human design, validation, or academic responsibility.
