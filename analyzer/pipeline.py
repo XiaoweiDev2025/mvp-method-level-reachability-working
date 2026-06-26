@@ -1,5 +1,5 @@
 """
-Vulnerability Risk Assessment Pipeline — top-level orchestrator.
+Vulnerability Risk Assessment Pipeline.
 
 Runs the full evidence chain for one or more CVEs against a given project:
   1. Load seeds (YAML)
@@ -90,7 +90,7 @@ def run(
     verbose: bool,
     project_prefix: str | None = None,
     extra_entry_points: list[str] | None = None,
-) -> list[EvidenceChain]:
+) -> None:
 
     seeds = load_all_seeds(SEEDS_DIR)
     if cve_filter:
@@ -166,7 +166,7 @@ def run(
         write_vex(output_vex, project_artifact, chains)
         print(f"VEX written to {output_vex}")
 
-    return chains
+    return None
 
 
 _VEX_STATE_MAP = {

@@ -1,0 +1,148 @@
+{
+  "project": "fr.christophetd.log4shell:log4shell-vulnerable-app:0.0.1-SNAPSHOT",
+  "findings": [
+    {
+      "chain_id": "CVE-2021-44228::fr.christophetd.log4shell:log4shell-vulnerable-app:0.0.1-SNAPSHOT",
+      "cve": "CVE-2021-44228",
+      "project": "fr.christophetd.log4shell:log4shell-vulnerable-app:0.0.1-SNAPSHOT",
+      "vulnerable_component": "org.apache.logging.log4j:log4j-core:>=2.0-beta9,<2.15.0",
+      "seed_method": "org.apache.logging.log4j.core.lookup.JndiLookup.lookup(Lorg/apache/logging/log4j/core/LogEvent;Ljava/lang/String;)Ljava/lang/String;",
+      "evidence_level": 4,
+      "evidence_summary": {
+        "dependency_match": true,
+        "static_reachable": true,
+        "runtime_observed": true,
+        "entry_points": [
+          "fr.christophetd.log4shell.vulnerableapp.VulnerableAppApplication.main([Ljava/lang/String;)V"
+        ],
+        "call_path_depth": 15,
+        "trace_ids": [
+          "886b2ee94679ffb42c67af8a5f16e198"
+        ]
+      },
+      "static": {
+        "status": "reachable",
+        "confidence": 0.9,
+        "analysis_fingerprint": "9e49bd478d702342",
+        "entry_points_used": [
+          "fr.christophetd.log4shell.vulnerableapp.VulnerableAppApplication.main([Ljava/lang/String;)V"
+        ],
+        "call_path": [
+          "fr.christophetd.log4shell.vulnerableapp.VulnerableAppApplication.main([Ljava/lang/String;)V",
+          "org.springframework.boot.SpringApplication.run(Ljava/lang/Class;[Ljava/lang/String;)Lorg/springframework/context/ConfigurableApplicationContext;",
+          "org.springframework.boot.SpringApplication.run([Ljava/lang/Class;[Ljava/lang/String;)Lorg/springframework/context/ConfigurableApplicationContext;",
+          "org.springframework.boot.SpringApplication.run([Ljava/lang/String;)Lorg/springframework/context/ConfigurableApplicationContext;",
+          "org.springframework.boot.SpringApplication.handleRunFailure(Lorg/springframework/context/ConfigurableApplicationContext;Ljava/lang/Throwable;Lorg/springframework/boot/SpringApplicationRunListeners;)V",
+          "org.apache.commons.logging.LogAdapter$Slf4jLocationAwareLog.warn(Ljava/lang/Object;Ljava/lang/Throwable;)V",
+          "org.apache.logging.slf4j.Log4jLogger.log(Lorg/slf4j/Marker;Ljava/lang/String;ILjava/lang/String;[Ljava/lang/Object;Ljava/lang/Throwable;)V",
+          "org.apache.logging.log4j.core.Logger.logMessage(Ljava/lang/String;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
+          "org.apache.logging.log4j.core.config.AwaitCompletionReliabilityStrategy.log(Lorg/apache/logging/log4j/util/Supplier;Ljava/lang/String;Ljava/lang/String;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
+          "org.apache.logging.log4j.core.config.LoggerConfig.log(Ljava/lang/String;Ljava/lang/String;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
+          "org.apache.logging.log4j.core.lookup.StrSubstitutor.replace(Lorg/apache/logging/log4j/core/LogEvent;Ljava/lang/String;)Ljava/lang/String;",
+          "org.apache.logging.log4j.core.lookup.StrSubstitutor.substitute(Lorg/apache/logging/log4j/core/LogEvent;Ljava/lang/StringBuilder;II)Z",
+          "org.apache.logging.log4j.core.lookup.StrSubstitutor.substitute(Lorg/apache/logging/log4j/core/LogEvent;Ljava/lang/StringBuilder;IILjava/util/List;)I",
+          "org.apache.logging.log4j.core.lookup.StrSubstitutor.resolveVariable(Lorg/apache/logging/log4j/core/LogEvent;Ljava/lang/String;Ljava/lang/StringBuilder;II)Ljava/lang/String;",
+          "org.apache.logging.log4j.core.lookup.JndiLookup.lookup(Lorg/apache/logging/log4j/core/LogEvent;Ljava/lang/String;)Ljava/lang/String;"
+        ],
+        "call_path_annotated": [
+          {
+            "sig": "fr.christophetd.log4shell.vulnerableapp.VulnerableAppApplication.main([Ljava/lang/String;)V",
+            "edge_type": "ENTRY_POINT"
+          },
+          {
+            "sig": "org.springframework.boot.SpringApplication.run(Ljava/lang/Class;[Ljava/lang/String;)Lorg/springframework/context/ConfigurableApplicationContext;",
+            "edge_type": "CALL"
+          },
+          {
+            "sig": "org.springframework.boot.SpringApplication.run([Ljava/lang/Class;[Ljava/lang/String;)Lorg/springframework/context/ConfigurableApplicationContext;",
+            "edge_type": "CALL"
+          },
+          {
+            "sig": "org.springframework.boot.SpringApplication.run([Ljava/lang/String;)Lorg/springframework/context/ConfigurableApplicationContext;",
+            "edge_type": "CALL"
+          },
+          {
+            "sig": "org.springframework.boot.SpringApplication.handleRunFailure(Lorg/springframework/context/ConfigurableApplicationContext;Ljava/lang/Throwable;Lorg/springframework/boot/SpringApplicationRunListeners;)V",
+            "edge_type": "CALL"
+          },
+          {
+            "sig": "org.apache.commons.logging.LogAdapter$Slf4jLocationAwareLog.warn(Ljava/lang/Object;Ljava/lang/Throwable;)V",
+            "edge_type": "CHA_EXPANSION[org.apache.commons.logging.Log->org.apache.commons.logging.LogAdapter$Slf4jLocationAwareLog]"
+          },
+          {
+            "sig": "org.apache.logging.slf4j.Log4jLogger.log(Lorg/slf4j/Marker;Ljava/lang/String;ILjava/lang/String;[Ljava/lang/Object;Ljava/lang/Throwable;)V",
+            "edge_type": "CHA_EXPANSION[org.slf4j.spi.LocationAwareLogger->org.apache.logging.slf4j.Log4jLogger]"
+          },
+          {
+            "sig": "org.apache.logging.log4j.core.Logger.logMessage(Ljava/lang/String;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
+            "edge_type": "CHA_EXPANSION[org.apache.logging.log4j.spi.ExtendedLogger->org.apache.logging.log4j.core.Logger]"
+          },
+          {
+            "sig": "org.apache.logging.log4j.core.config.AwaitCompletionReliabilityStrategy.log(Lorg/apache/logging/log4j/util/Supplier;Ljava/lang/String;Ljava/lang/String;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
+            "edge_type": "CHA_EXPANSION[org.apache.logging.log4j.core.config.ReliabilityStrategy->org.apache.logging.log4j.core.config.AwaitCompletionReliabilityStrategy]"
+          },
+          {
+            "sig": "org.apache.logging.log4j.core.config.LoggerConfig.log(Ljava/lang/String;Ljava/lang/String;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
+            "edge_type": "CALL"
+          },
+          {
+            "sig": "org.apache.logging.log4j.core.lookup.StrSubstitutor.replace(Lorg/apache/logging/log4j/core/LogEvent;Ljava/lang/String;)Ljava/lang/String;",
+            "edge_type": "CALL"
+          },
+          {
+            "sig": "org.apache.logging.log4j.core.lookup.StrSubstitutor.substitute(Lorg/apache/logging/log4j/core/LogEvent;Ljava/lang/StringBuilder;II)Z",
+            "edge_type": "CALL"
+          },
+          {
+            "sig": "org.apache.logging.log4j.core.lookup.StrSubstitutor.substitute(Lorg/apache/logging/log4j/core/LogEvent;Ljava/lang/StringBuilder;IILjava/util/List;)I",
+            "edge_type": "CALL"
+          },
+          {
+            "sig": "org.apache.logging.log4j.core.lookup.StrSubstitutor.resolveVariable(Lorg/apache/logging/log4j/core/LogEvent;Ljava/lang/String;Ljava/lang/StringBuilder;II)Ljava/lang/String;",
+            "edge_type": "CALL"
+          },
+          {
+            "sig": "org.apache.logging.log4j.core.lookup.JndiLookup.lookup(Lorg/apache/logging/log4j/core/LogEvent;Ljava/lang/String;)Ljava/lang/String;",
+            "edge_type": "CHA_EXPANSION[org.apache.logging.log4j.core.lookup.StrLookup->org.apache.logging.log4j.core.lookup.JndiLookup]"
+          }
+        ],
+        "uncertain_features": [],
+        "residual_risk_reason": [],
+        "engine": "asm-callgraph-1.0"
+      },
+      "runtime": {
+        "status": "observed",
+        "confidence": 0.95,
+        "trace_ids": [
+          "886b2ee94679ffb42c67af8a5f16e198"
+        ],
+        "observed_call_count": 1
+      },
+      "decision": "affected",
+      "decision_confidence": 0.9,
+      "risk_score": 10.0,
+      "notes": "Static: reachable (conf=0.9) | Path depth: 15 hops | Runtime: observed (conf=0.95) | Observed 1 call(s) | Trace IDs: ['886b2ee94679ffb42c67af8a5f16e198']",
+      "audit_record": null,
+      "remediation": {
+        "priority": "URGENT",
+        "upgrade_path": [
+          {
+            "artifact": "org.apache.logging.log4j:log4j-core",
+            "from_version": ">=2.0-beta9,<2.15.0",
+            "to_version": "2.15.0"
+          }
+        ],
+        "entry_point_in_your_code": "fr.christophetd.log4shell.vulnerableapp.VulnerableAppApplication.main([Ljava/lang/String;)V",
+        "fix_commit": "https://github.com/apache/logging-log4j2/commit/c77b3cb",
+        "effort_estimate": "HIGH",
+        "notes": "Vulnerable method is statically reachable and observed at runtime. Fix before next release."
+      }
+    }
+  ],
+  "summary": {
+    "total": 1,
+    "affected": 1,
+    "not_affected": 0,
+    "under_investigation": 0
+  }
+}

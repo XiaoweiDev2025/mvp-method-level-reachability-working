@@ -21,6 +21,10 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
+# Gradle build output
+**/build/
+**/.gradle/
+
 # Temp files
 *.tmp
 callgraph.tmp.txt

@@ -1,4 +1,4 @@
-16:00:41.449 [main] ERROR com.example.App - User input: ${jndi:ldap://127.0.0.1/x}
+22:59:53.143 [main] ERROR com.example.App - User input: ${jndi:ldap://127.0.0.1/x}
 OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-[otel.javaagent 2026-06-10 16:00:39:290 +0100] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.32.0
-[otel.javaagent 2026-06-10 16:00:41:526 +0100] [main] INFO io.opentelemetry.exporter.logging.LoggingSpanExporter - 'JndiLookup.lookup' : 50b93a0c550dd9e980d2d7675cf93544 a8dff9d191801e3a INTERNAL [tracer: io.opentelemetry.methods:1.32.0-alpha] AttributesMap{data={thread.name=main, code.function=lookup, thread.id=1, code.namespace=org.apache.logging.log4j.core.lookup.JndiLookup}, capacity=128, totalAddedValues=4}
+[otel.javaagent 2026-06-25 22:59:50:896 +0100] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.32.0
+[otel.javaagent 2026-06-25 22:59:53:229 +0100] [main] INFO io.opentelemetry.exporter.logging.LoggingSpanExporter - 'JndiLookup.lookup' : 9c172e1c910d6b14fa1aee42d621b2f3 13acdeedee9dc43c INTERNAL [tracer: io.opentelemetry.methods:1.32.0-alpha] AttributesMap{data={thread.name=main, code.function=lookup, thread.id=1, code.namespace=org.apache.logging.log4j.core.lookup.JndiLookup}, capacity=128, totalAddedValues=4}

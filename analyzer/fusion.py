@@ -204,6 +204,28 @@ def _decide(
     )
 
 
+def apply_audit(chain: EvidenceChain, audit_record: "AuditRecord") -> EvidenceChain:
+    """
+    Promote a finding to L5 AUDITED after human review.
+
+    The automated evidence (static, runtime) is preserved unchanged.
+    Only evidence_level, audit_record, and optionally decision are updated.
+    decision_confidence is capped at 0.98 — even human review is not infallible.
+    """
+    from copy import copy
+    from models import AuditRecord  # local import to avoid circular at module level
+
+    updated = copy(chain)
+    updated.audit_record = audit_record
+    updated.evidence_level = EvidenceLevel.L5_AUDITED
+
+    if audit_record.decision_override:
+        updated.decision = Decision(audit_record.decision_override)
+
+    updated.decision_confidence = min(0.98, chain.decision_confidence + 0.20)
+    return updated
+
+
 def _build_notes(
     static: Optional[StaticEvidence],
     runtime: Optional[RuntimeEvidence],

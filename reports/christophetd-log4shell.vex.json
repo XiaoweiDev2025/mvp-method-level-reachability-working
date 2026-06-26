@@ -1,0 +1,31 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-06-26T18:00:52.046181Z",
+    "tools": [
+      {
+        "name": "vuln-risk-assessor",
+        "version": "1.0"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "id": "CVE-2021-44228",
+      "analysis": {
+        "state": "exploitable",
+        "detail": "Static: reachable (conf=0.9) | Path depth: 15 hops | Runtime: observed (conf=0.95) | Observed 1 call(s) | Trace IDs: ['886b2ee94679ffb42c67af8a5f16e198']",
+        "response": [
+          "update"
+        ]
+      },
+      "affects": [
+        {
+          "ref": "fr.christophetd.log4shell:log4shell-vulnerable-app:0.0.1-SNAPSHOT"
+        }
+      ]
+    }
+  ]
+}

@@ -377,6 +377,190 @@ python scripts/risk_reduction.py
 
 ---
 
+## Applying the Pipeline to an External Project
+
+The pipeline is not limited to the bundled demo projects. Any Java application can be analysed by providing its compiled JARs directly. This section documents how to apply it to an external codebase and records the common obstacles encountered when doing so, using `christophetd/log4shell-vulnerable-app` — a Spring Boot application widely cited in Log4Shell security research — as a worked example.
+
+### Project Selection Criteria
+
+Three criteria were applied when selecting an external project for validation:
+
+1. **Seed compatibility** — the project must depend on a library version already covered by an existing seed in `data/seeds/`, so no new seed authoring is required.
+2. **Active exploit path** — the application must pass user-controlled input into the vulnerable method, creating a statically traceable and runtime-triggerable call path, not merely a transitive dependency with no reachable call site.
+3. **Independence** — no shared code or call graph data with the bundled demo projects; the result must come from a fully independent extraction.
+
+`christophetd/log4shell-vulnerable-app` satisfies all three: it depends on `log4j-core:2.14.1` (matched by `data/seeds/CVE-2021-44228.yaml`), its `MainController` passes the `X-Api-Version` HTTP header directly to `logger.info()`, and it shares no code with any bundled demo project.
+
+### Maven Project (Simple Case)
+
+For a standard Maven project, two commands produce all the JARs needed:
+
+```bash
+mvn package -DskipTests
+mvn dependency:copy-dependencies -DoutputDirectory=target/deps
+```
+
+Then pass the application JAR and all dependency JARs to the pipeline:
+
+```bash
+python analyzer/pipeline.py \
+  --project-jars target/myapp.jar target/deps/*.jar \
+  --project-artifact "com.example:myapp:1.0" \
+  --cve CVE-2021-44228
+```
+
+### Spring Boot / Gradle Project (Fat JAR Extraction)
+
+Spring Boot's default Gradle build produces a **nested JAR**: application classes live in `BOOT-INF/classes/` and dependency JARs in `BOOT-INF/lib/` inside the fat JAR. The ASM-based call graph extractor reads root-level `.class` files and does not recurse into nested JARs, so the fat JAR cannot be passed directly.
+
+Extract its contents first:
+
+```bash
+# Build
+./gradlew build -x test
+
+# Extract app classes and dependency JARs from the fat JAR
+cd build/libs
+jar xf myapp.jar
+jar cf app-classes.jar -C BOOT-INF/classes .
+```
+
+This produces:
+- `build/libs/app-classes.jar` — application classes only
+- `build/libs/BOOT-INF/lib/*.jar` — all dependency JARs (including the vulnerable library)
+
+Pass both to the pipeline:
+
+```bash
+python analyzer/pipeline.py \
+  --project-jars build/libs/app-classes.jar build/libs/BOOT-INF/lib/*.jar \
+  --project-artifact "com.example:myapp:1.0-SNAPSHOT"
+```
+
+### Runtime Evidence Collection (OTel) for External Projects
+
+To reach L4, the application must be run with the OTel Java agent attached and the vulnerable method instrumented. On Windows, use the provided batch script rather than PowerShell redirection (see pitfalls below):
+
+```bat
+.\run-christophetd-demo.bat
+```
+
+The script starts the app and writes all output to `data/traces/christophetd.log`. Once the app is running, send a request that exercises the vulnerable call path from a second terminal:
+
+```powershell
+Invoke-WebRequest -Uri http://localhost:8080/ `
+    -Headers @{"X-Api-Version" = '${jndi:ldap://127.0.0.1:1389/test}'} `
+    -UseBasicParsing
+```
+
+The JNDI payload causes log4j to call `JndiLookup.lookup()`. No LDAP server is required — the connection fails safely, but the OTel agent captures the span. Stop the app with Ctrl+C, then re-run the pipeline with `--trace-log data/traces/christophetd.log`.
+
+### Worked Example: christophetd/log4shell-vulnerable-app
+
+**Step 1 — Clone and fix Gradle/Java compatibility**
+
+```powershell
+git clone https://github.com/christophetd/log4shell-vulnerable-app `
+    demo-projects/log4shell-vulnerable-app
+```
+
+The project targets Gradle 7.3.1, which does not support Java 21. Update `gradle/wrapper/gradle-wrapper.properties`:
+```
+distributionUrl=https\://services.gradle.org/distributions/gradle-8.8-bin.zip
+```
+
+Spring Boot 2.6.x uses Gradle 7.x internal APIs and fails under Gradle 8. Update `build.gradle`:
+```groovy
+id 'org.springframework.boot' version '2.7.18'
+id 'io.spring.dependency-management' version '1.1.4'
+```
+
+Spring Boot 2.7.x manages log4j at a patched version. Pin the vulnerable version explicitly:
+```groovy
+ext['log4j2.version'] = '2.14.1'
+```
+
+**Step 2 — Build and extract JARs**
+
+```powershell
+cd demo-projects/log4shell-vulnerable-app
+.\gradlew build -x test
+cd build/libs
+jar xf log4shell-vulnerable-app-0.0.1-SNAPSHOT.jar
+jar cf app-classes.jar -C BOOT-INF/classes .
+cd C:\project\vuln_risk_assessor
+```
+
+**Step 3 — Assign JAR paths (required at the start of each new PowerShell session)**
+
+```powershell
+$appJar = "demo-projects/log4shell-vulnerable-app/build/libs/app-classes.jar"
+$depJars = (Get-ChildItem demo-projects/log4shell-vulnerable-app/build/libs/BOOT-INF/lib/*.jar |
+    ForEach-Object { $_.FullName })
+```
+
+**Step 4 — Static-only run (produces L3)**
+
+```powershell
+python analyzer/pipeline.py `
+    --project-jars $appJar $depJars `
+    --project-artifact "fr.christophetd.log4shell:log4shell-vulnerable-app:0.0.1-SNAPSHOT" `
+    --cve CVE-2021-44228 `
+    --output reports/christophetd-log4shell.json `
+    --output-vex reports/christophetd-log4shell.vex.json `
+    --verbose
+```
+
+Expected: `L3  under_investigation  risk=5.0  conf=0.60` — static reachability confirmed, no runtime evidence yet.
+
+**Step 5 — Collect OTel trace and re-run (upgrades to L4)**
+
+In a new terminal, start the app:
+```powershell
+.\run-christophetd-demo.bat
+```
+
+Once the Spring Boot startup banner appears, send a request from the original terminal:
+```powershell
+Invoke-WebRequest -Uri http://localhost:8080/ `
+    -Headers @{"X-Api-Version" = '${jndi:ldap://127.0.0.1:1389/test}'} `
+    -UseBasicParsing
+```
+
+Stop the app (Ctrl+C in the second terminal), then re-run with the captured trace:
+```powershell
+python analyzer/pipeline.py `
+    --project-jars $appJar $depJars `
+    --project-artifact "fr.christophetd.log4shell:log4shell-vulnerable-app:0.0.1-SNAPSHOT" `
+    --cve CVE-2021-44228 `
+    --trace-log data/traces/christophetd.log `
+    --output reports/christophetd-log4shell.json `
+    --output-vex reports/christophetd-log4shell.vex.json `
+    --verbose
+```
+
+Expected output:
+```
+[CVE-2021-44228]
+  [extractor] Processed 29 JAR(s), wrote 222576 edges to callgraph.tmp.txt
+  [INFO] Loaded 213911 edges, 2510 CHA type entries
+  [INFO] Entry points (1): ['fr.christophetd.log4shell.vulnerableapp.VulnerableAppApplication.main(...)']
+  CVE-2021-44228   L4  affected   risk=10.0  conf=0.90  remedy=URGENT
+```
+
+### Common Pitfalls
+
+| Problem | Cause | Fix |
+|---|---|---|
+| `Unsupported class file major version 65` | Gradle 7.x does not support Java 21 | Update `gradle-wrapper.properties` to `gradle-8.8-bin.zip` |
+| Spring Boot plugin fails under Gradle 8 | Spring Boot 2.6.x depends on Gradle 7.x internal APIs | Upgrade to `spring-boot:2.7.18` + `dependency-management:1.1.4` in `build.gradle` |
+| Spring Boot BOM upgrades log4j to a patched version | Spring Boot 2.7.x manages log4j 2.17.x by default | Add `ext['log4j2.version'] = '2.14.1'` to `build.gradle` |
+| `--project-jars: expected at least one argument` | `$appJar` / `$depJars` are lost between PowerShell sessions | Reassign both variables at the start of each new terminal session (Step 3 above) |
+| Trace log is unreadable / Python encoding error | PowerShell `*>` writes UTF-16 LE; the runtime analyzer reads UTF-8 | Use `run-christophetd-demo.bat` instead of direct PowerShell stream redirection |
+| Extractor finds 0 entry points | Spring Boot fat JAR passed directly; app classes not at JAR root | Extract `BOOT-INF/lib/*.jar` and create `app-classes.jar` from `BOOT-INF/classes/` first |
+
+---
+
 ## Running Tests
 
 ```bash
