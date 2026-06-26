@@ -1,8 +1,6 @@
 # Vulnerability Risk Assessor
 
-A prototype framework for assessing whether known vulnerable methods in Java Maven dependencies are reachable from application code. It combines bytecode-level call graph analysis with runtime OpenTelemetry execution traces to produce a graduated evidence chain (L0–L5), CVSS-weighted exposure scores, and CycloneDX VEX output — structured for EU Cyber Resilience Act (CRA) conformity assessment workflows, not just dependency scanning.
-
-Inspired by: *Shen et al., "Beyond Package-Level: Method-Level Vulnerability Reachability Analysis," ESE 2025.*
+A prototype framework for assessing whether known vulnerable methods in Java Maven dependencies are reachable from application code. It combines bytecode-level call graph analysis with runtime OpenTelemetry execution traces to produce a graduated evidence chain (L0–L5), CVSS-weighted exposure scores, and CycloneDX VEX output — structured for EU Cyber Resilience Act (CRA) conformity assessment workflows, not just dependency scanning, building on the method-level reachability framing of Shen et al. (ESE 2025).
 
 **What this tool does:**
 - Extracts a bytecode-level call graph from application JARs using a custom ASM-based extractor
@@ -124,7 +122,7 @@ Package-level scanners over-approximate: they report every (app, CVE) pair where
 
 > "Reachability analysis reduced aggregate CVSS-weighted exposure by **62%** relative to package-level scanning across our 8-application evaluation dataset, by assigning a residual weight of 0.10 to statically-unreachable findings to account for analysis uncertainty (4 of 8 package-scanner alerts were statically unreachable)."
 
-**On the evidence multipliers:** The values (1.00 / 0.50 / 0.10) are design parameters, not CVSS-official standards. The 0.10 residual for NOT_REACHABLE findings is intentionally non-zero: it represents two sources of analysis uncertainty — (1) static analysis does not model reflection, `invokedynamic`, or dynamic class loading; (2) a method unreachable today may become reachable after a future refactor. This metric therefore quantifies *reachability-adjusted exposure re-weighting*, not a reduction in real-world attack probability. The specific multiplier values should be calibrated against a labelled exploit dataset in future work.
+> **Design note:** The evidence multiplier values (1.00 / 0.50 / 0.10) are design parameters, not CVSS-official standards. The 0.10 residual for NOT_REACHABLE findings is intentionally non-zero: it represents two sources of analysis uncertainty — (1) static analysis does not model reflection, `invokedynamic`, or dynamic class loading; (2) a method unreachable today may become reachable after a future refactor. This metric therefore quantifies *reachability-adjusted exposure re-weighting*, not a reduction in real-world attack probability. The specific multiplier values should be calibrated against a labelled exploit dataset in future work.
 
 ---
 
