@@ -731,6 +731,6 @@ AI tools, including Claude, were used during this project as development aids fo
 
 The research question, system design, evidence model, evaluation methodology, and interpretation of results were conceived and directed by the author. All generated code and text were manually reviewed, tested, revised, and integrated by the author.
 
-The repository commit history may include commits produced through AI-assisted coding workflows. This reflects tool-assisted implementation activity, not academic co-authorship or independent project ownership.
+This project's implementation was developed with AI coding assistance. This reflects tool-assisted implementation activity, not academic co-authorship or independent project ownership.
 
 AI assistance should therefore be understood as tool-supported implementation assistance, not as independent authorship or a substitute for human design, validation, or academic responsibility.
