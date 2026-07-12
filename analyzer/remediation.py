@@ -76,6 +76,9 @@ def build_remediation(
     if priority == "MONITOR" and decision == Decision.UNDER_INVESTIGATION:
         base_note = _PRIORITY_NOTES["MONITOR"]
 
+    if seed.package.remediation_note:
+        base_note = f"{base_note} {seed.package.remediation_note}".strip()
+
     return RemediationAdvice(
         cve=chain.cve,
         priority=priority,

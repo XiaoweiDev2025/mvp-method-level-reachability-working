@@ -92,5 +92,5 @@ if __name__ == "__main__":
     print()
     r2 = test_benign_not_observed()
 
-    if r1 is False:
+    if r1 is False or r2 is False:
         sys.exit(1)

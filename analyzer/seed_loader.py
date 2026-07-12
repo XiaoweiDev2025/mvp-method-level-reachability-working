@@ -6,6 +6,7 @@ the specific Java method that contains or triggers the vulnerable behaviour.
 Seeds are the anchor point for both static and runtime reachability analysis.
 """
 
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
@@ -39,6 +40,7 @@ class SeedPackage:
     artifact_id: str
     vulnerable_range: str
     fixed_version: str
+    remediation_note: str = ""  # e.g. caveats when fixed_version alone is insufficient
 
     @property
     def coordinates(self) -> str:
@@ -66,16 +68,30 @@ def load_seed(path: Path) -> Seed:
     with open(path, encoding="utf-8") as f:
         raw = yaml.safe_load(f)
 
+    if not isinstance(raw, dict):
+        raise ValueError(f"Seed {path} is empty or not a YAML mapping.")
+    if "cve" not in raw:
+        raise ValueError(f"Seed {path} is missing required top-level key 'cve'.")
+    if "package" not in raw or not isinstance(raw["package"], dict):
+        raise ValueError(f"Seed {path} is missing required top-level key 'package'.")
+
     pkg_raw = raw["package"]
+    for required in ("group_id", "artifact_id"):
+        if required not in pkg_raw:
+            raise ValueError(f"Seed {path} package block is missing required key '{required}'.")
+
     package = SeedPackage(
         group_id=pkg_raw["group_id"],
         artifact_id=pkg_raw["artifact_id"],
         vulnerable_range=pkg_raw.get("vulnerable_range", ""),
         fixed_version=pkg_raw.get("fixed_version", ""),
+        remediation_note=pkg_raw.get("remediation_note", ""),
     )
 
     methods = []
     for m in raw.get("vulnerable_methods", []):
+        if "fqcn" not in m or "method" not in m:
+            raise ValueError(f"Seed {path} has a vulnerable_methods entry missing 'fqcn'/'method'.")
         methods.append(VulnerableMethod(
             fqcn=m["fqcn"],
             method=m["method"],
@@ -101,10 +117,17 @@ def load_all_seeds(seeds_dir: Path) -> dict[str, Seed]:
     """
     Load all *.yaml files from a directory.
     Returns a dict keyed by CVE ID, e.g. {"CVE-2021-44228": Seed(...), ...}
+
+    A malformed seed file is skipped (with a warning) rather than aborting
+    the whole batch — one bad file shouldn't block assessment of every other CVE.
     """
     seeds = {}
     for yaml_file in sorted(seeds_dir.glob("*.yaml")):
-        seed = load_seed(yaml_file)
+        try:
+            seed = load_seed(yaml_file)
+        except Exception as exc:
+            print(f"  [WARN] Skipping malformed seed {yaml_file}: {exc}", file=sys.stderr)
+            continue
         seeds[seed.cve] = seed
     return seeds
 

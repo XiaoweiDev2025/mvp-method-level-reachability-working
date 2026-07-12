@@ -28,6 +28,7 @@ public class CallGraphExtractor {
 
     // Using LinkedHashSet preserves insertion order and deduplicates edges.
     private static final Set<String> edges = new LinkedHashSet<>();
+    private static int classesSkipped = 0;
 
     public static void main(String[] args) throws Exception {
         if (args.length < 2) {
@@ -37,10 +38,19 @@ public class CallGraphExtractor {
 
         String outputPath = args[0];
         int processed = 0;
+        int jarsFailed = 0;
 
         for (int i = 1; i < args.length; i++) {
-            processJar(args[i]);
-            processed++;
+            try {
+                processJar(args[i]);
+                processed++;
+            } catch (Exception e) {
+                // One unreadable/corrupt JAR must not abort extraction for the rest —
+                // the pipeline needs whatever edges the other JARs produced, not a
+                // silent zero-output run indistinguishable from "found nothing".
+                jarsFailed++;
+                System.err.printf("  [WARN] Skipping unreadable JAR %s: %s%n", args[i], e);
+            }
         }
 
         try (PrintWriter pw = new PrintWriter(
@@ -50,11 +60,11 @@ public class CallGraphExtractor {
             }
         }
 
-        System.err.printf("Processed %d JAR(s), wrote %d edges to %s%n",
-                processed, edges.size(), outputPath);
+        System.err.printf("Processed %d JAR(s) (%d failed), skipped %d unparseable class(es), wrote %d edges to %s%n",
+                processed, jarsFailed, classesSkipped, edges.size(), outputPath);
     }
 
-    private static void processJar(String jarPath) throws Exception {
+    private static void processJar(String jarPath) throws IOException {
         try (JarFile jar = new JarFile(jarPath)) {
             Enumeration<JarEntry> entries = jar.entries();
             while (entries.hasMoreElements()) {
@@ -66,7 +76,16 @@ public class CallGraphExtractor {
                     classBytes = is.readAllBytes();
                 }
 
-                processClass(classBytes);
+                try {
+                    processClass(classBytes);
+                } catch (Throwable t) {
+                    // A single malformed/exotic class entry (multi-release JAR metadata,
+                    // truncated or obfuscated bytecode, etc.) must not abort extraction
+                    // for the rest of the JAR.
+                    classesSkipped++;
+                    System.err.printf("  [WARN] Skipping unparseable class %s in %s: %s%n",
+                            entry.getName(), jarPath, t);
+                }
             }
         }
     }

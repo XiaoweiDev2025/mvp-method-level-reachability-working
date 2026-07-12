@@ -179,7 +179,10 @@ def fetch_osv(cve_id: str) -> dict:
     This two-record strategy is necessary because OSV does not consolidate
     package metadata across alias records.
     """
-    primary = _fetch_one(cve_id)
+    try:
+        primary = _fetch_one(cve_id)
+    except Exception as exc:
+        raise RuntimeError(f"OSV fetch failed for {cve_id}: {exc}") from exc
 
     has_maven = any(
         e.get("package", {}).get("ecosystem", "").lower() == "maven"
@@ -204,31 +207,49 @@ def fetch_osv(cve_id: str) -> dict:
             if maven_entries:
                 primary.setdefault("affected", []).extend(maven_entries)
 
-            # Merge references (deduplicated)
-            existing = {r.get("url") for r in primary.get("references", [])}
-            for ref in ghsa.get("references", []):
-                if ref.get("url") not in existing:
-                    primary.setdefault("references", []).append(ref)
-                    existing.add(ref.get("url"))
+                # Merge references (deduplicated) — only from the alias that actually
+                # supplied the Maven data, so we don't pull in unrelated alias content.
+                existing = {r.get("url") for r in primary.get("references", [])}
+                for ref in ghsa.get("references", []):
+                    if ref.get("url") not in existing:
+                        primary.setdefault("references", []).append(ref)
+                        existing.add(ref.get("url"))
 
-            # Merge CWE IDs from GHSA's database_specific
-            ghsa_cwes = ghsa.get("database_specific", {}).get("cwe_ids", [])
-            if ghsa_cwes:
-                primary.setdefault("database_specific", {})["cwe_ids"] = ghsa_cwes
+                # Merge CWE IDs from this same GHSA's database_specific.
+                ghsa_cwes = ghsa.get("database_specific", {}).get("cwe_ids", [])
+                if ghsa_cwes:
+                    primary.setdefault("database_specific", {})["cwe_ids"] = ghsa_cwes
 
-            if maven_entries:
                 break   # found what we needed
 
     return primary
 
 
 def _maven_package(affected: list[dict]) -> tuple[str, str]:
+    """
+    Return the group_id/artifact_id of the first Maven entry in affected[].
+
+    Multi-module advisories can list more than one Maven artifact; only the
+    first is used here (a full multi-package seed skeleton is out of scope),
+    but callers are warned when this drops data.
+    """
+    names: list[str] = []
     for entry in affected:
         pkg = entry.get("package", {})
         if pkg.get("ecosystem", "").lower() == "maven":
             name = pkg.get("name", "")
-            if ":" in name:
-                return name.split(":", 1)
+            if ":" in name and name not in names:
+                names.append(name)
+
+    if len(names) > 1:
+        print(
+            f"  [seed-ingestor] [WARN] Advisory affects {len(names)} distinct Maven "
+            f"artifacts ({names}); only the first is used for this seed skeleton.",
+            file=sys.stderr,
+        )
+
+    if names:
+        return names[0].split(":", 1)
     return "", ""
 
 
@@ -528,12 +549,16 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    meta, candidates, commit_url = ingest(
-        cve_id          = args.cve,
-        run_mapping     = not args.no_mapping,
-        package_filter  = args.package or None,
-        commit_override = args.commit,
-    )
+    try:
+        meta, candidates, commit_url = ingest(
+            cve_id          = args.cve,
+            run_mapping     = not args.no_mapping,
+            package_filter  = args.package or None,
+            commit_override = args.commit,
+        )
+    except RuntimeError as exc:
+        print(f"  [seed-ingestor] ERROR: {exc}", file=sys.stderr)
+        sys.exit(1)
 
     doc      = build_output_doc(meta, candidates, commit_url)
     yaml_str = _dump_yaml(doc)

@@ -257,7 +257,9 @@ def _package_from_path(path: str) -> str:
 
 _MODS  = r"(?:(?:public|private|protected|static|final|synchronized|native|abstract|default|strictfp)\s+)*"
 _GENS  = r"(?:<[^>]+>\s*)?"
-_TYRE  = r"(?:[\w$]+(?:\[\])*(?:<[^>]*>)?)"
+# One level of generic nesting (e.g. Map<String, List<Foo>>) is supported; deeper
+# nesting is a known, documented limitation — see module docstring.
+_TYRE  = r"(?:[\w$]+(?:\[\])*(?:<[^<>]*(?:<[^<>]*>[^<>]*)*>)?(?:\[\])*)"
 _SKIP  = frozenset(["if", "for", "while", "switch", "catch", "try", "new", "return", "throw", "assert"])
 
 # Full method declaration with closing brace — Strategy B (removed lines)
@@ -277,12 +279,47 @@ _METHOD_HEADER = re.compile(
     rf"\("                 # opening paren only
 )
 
+# Constructors have no return type, so _METHOD_FULL/_METHOD_HEADER never match them.
+# These mirror the two above but without the return-type requirement; callers must
+# additionally check the captured name against the enclosing class name. The
+# negative lookbehind excludes `new ClassName(...)` construction calls, which would
+# otherwise look identical to a same-named constructor declaration.
+_CTOR_FULL = re.compile(
+    rf"(?:^|[\s]){_MODS}{_GENS}(?<!new )"
+    rf"(\w+)\s*"           # group 1: constructor name (must equal enclosing class)
+    rf"\(([^)]*)\)\s*"     # group 2: parameter list
+    rf"(?:throws\s+[\w,\s]+)?\s*\{{"
+)
+_CTOR_HEADER = re.compile(
+    rf"(?:^|[\s]){_MODS}{_GENS}(?<!new )"
+    rf"(\w+)\s*"           # group 1: constructor name
+    rf"\("                 # opening paren only
+)
+
 _PACKAGE    = re.compile(r"^\+?-?\s*package\s+([\w.]+)\s*;")
 _CLASS_DECL = re.compile(
     r"(?:^|[\s+\-])(?:public\s+)?(?:abstract\s+|final\s+)?"
     r"(?:class|interface|enum)\s+(\w+)"
 )
 _HUNK_HDR   = re.compile(r"^@@[^@]+@@\s*(.*)")
+
+
+def _declared_in(name: str, text: str) -> bool:
+    """
+    True if `name` appears as an actual method/constructor declaration in text,
+    as opposed to merely being called/referenced. Used to distinguish "this method
+    was deleted" from "this method is still declared elsewhere but also called here".
+    """
+    for line in text.splitlines():
+        if name not in line:
+            continue
+        m = _METHOD_HEADER.search(line)
+        if m and m.group(1) == name:
+            return True
+        m = _CTOR_HEADER.search(line)
+        if m and m.group(1) == name:
+            return True
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -339,47 +376,47 @@ def parse_diff(diff_text: str, package_filter: Optional[str] = None) -> list[Met
         all_text = "\n".join(removed_lines + added_lines + context_lines)
         terms    = _match_evidence_terms(all_text)
 
+        class_name = ctx.classes[-1] if ctx.classes else None
+
         # Strategy A — method name from hunk header
         if current_hdr:
             m = _METHOD_HEADER.search(current_hdr)
-            if m:
-                mname = m.group(1)
-                if mname not in _SKIP:
-                    key = f"{ctx.fqcn}.{mname}"
-                    if key not in seen:
-                        seen.add(key)
-                        candidates.append(MethodCandidate(
-                            fqcn           = ctx.fqcn,
-                            method         = mname,
-                            source_file    = ctx.path,
-                            diff_hunk      = current_hdr,
-                            hunk_stats     = stats,
-                            patch_semantic = semantic,
-                            evidence_terms = terms,
-                            confidence     = _confidence(semantic, bool(terms)),
-                        ))
+            mname = m.group(1) if m else None
+            if mname is None:
+                cm = _CTOR_HEADER.search(current_hdr)
+                if cm and cm.group(1) == class_name:
+                    mname = "<init>"
+            if mname and mname not in _SKIP:
+                key = f"{ctx.fqcn}.{mname}"
+                if key not in seen:
+                    seen.add(key)
+                    candidates.append(MethodCandidate(
+                        fqcn           = ctx.fqcn,
+                        method         = mname,
+                        source_file    = ctx.path,
+                        diff_hunk      = current_hdr,
+                        hunk_stats     = stats,
+                        patch_semantic = semantic,
+                        evidence_terms = terms,
+                        confidence     = _confidence(semantic, bool(terms)),
+                    ))
 
         # Strategy B — full declarations in removed lines
         removed_text = "\n".join(removed_lines)
         added_text   = "\n".join(added_lines)
-        for m in _METHOD_FULL.finditer(removed_text):
-            ret_type  = m.group(1)
-            mname     = m.group(2)
-            param_str = m.group(3)
-            if mname in _SKIP:
-                continue
-            key  = f"{ctx.fqcn}.{mname}"
-            hint = _build_descriptor_hint(ret_type, _parse_param_types(param_str))
+
+        def _add_candidate(mname: str, hint: Optional[str], semantic_: str) -> None:
+            key = f"{ctx.fqcn}.{mname}"
             if key in seen:
                 # Enrich existing candidate with descriptor_hint
                 for c in candidates:
                     if c.fqcn == ctx.fqcn and c.method == mname and c.descriptor_hint is None:
                         c.descriptor_hint = hint
                         break
-                continue
+                return
             seen.add(key)
-            is_deleted_method = not re.search(rf"\b{re.escape(mname)}\s*\(", added_text)
-            this_sem = semantic if ctx.is_deleted else ("method_deleted" if is_deleted_method else semantic)
+            is_deleted_method = not _declared_in(mname if mname != "<init>" else class_name, added_text)
+            this_sem = semantic_ if ctx.is_deleted else ("method_deleted" if is_deleted_method else semantic_)
             candidates.append(MethodCandidate(
                 fqcn            = ctx.fqcn,
                 method          = mname,
@@ -391,6 +428,23 @@ def parse_diff(diff_text: str, package_filter: Optional[str] = None) -> list[Met
                 evidence_terms  = terms,
                 confidence      = _confidence(this_sem, bool(terms)),
             ))
+
+        for m in _METHOD_FULL.finditer(removed_text):
+            ret_type  = m.group(1)
+            mname     = m.group(2)
+            param_str = m.group(3)
+            if mname in _SKIP:
+                continue
+            hint = _build_descriptor_hint(ret_type, _parse_param_types(param_str))
+            _add_candidate(mname, hint, semantic)
+
+        for m in _CTOR_FULL.finditer(removed_text):
+            cname     = m.group(1)
+            param_str = m.group(2)
+            if cname in _SKIP or cname != class_name:
+                continue
+            hint = _build_descriptor_hint("void", _parse_param_types(param_str))
+            _add_candidate("<init>", hint, semantic)
 
     for line in diff_text.splitlines():
         if line.startswith("diff --git"):

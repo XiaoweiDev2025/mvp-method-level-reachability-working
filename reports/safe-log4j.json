@@ -43,25 +43,26 @@
       "risk_score": 1.0,
       "notes": "Static: not_reachable (conf=0.7) | Uncertain features: ['invokedynamic_not_modelled']",
       "audit_record": null,
+      "audit_history": [],
       "remediation": {
         "priority": "MONITOR",
         "upgrade_path": [
           {
             "artifact": "org.apache.logging.log4j:log4j-core",
             "from_version": ">=2.0-beta9,<2.15.0",
-            "to_version": "2.15.0"
+            "to_version": "2.17.0"
           }
         ],
         "entry_point_in_your_code": "",
         "fix_commit": "https://github.com/apache/logging-log4j2/commit/c77b3cb",
         "effort_estimate": "LOW",
-        "notes": "No confirmed reachability. Increase test coverage to determine actual exposure, or upgrade when convenient."
+        "notes": "No confirmed reachability. Increase test coverage to determine actual exposure, or upgrade when convenient. 2.15.0 was the initial fix for CVE-2021-44228 but contained an incomplete patch (CVE-2021-45046, CVSS 9.0). 2.16.0 introduced CVE-2021-45105 (CVSS 7.5). Upgrade to 2.17.0 (Java 8+) or 2.12.4 (Java 7) as the minimum safe version."
       }
     }
   ],
   "summary": {
     "total": 1,
-    "affected": 1,
+    "affected": 0,
     "not_affected": 1,
     "under_investigation": 0
   }

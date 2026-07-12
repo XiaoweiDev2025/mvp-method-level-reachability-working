@@ -151,8 +151,8 @@ def run(
         "findings": findings,
         "summary": {
             "total": len(chains),
-            "affected":    sum(1 for c in chains if c.decision and "affected"    in c.decision.value),
-            "not_affected": sum(1 for c in chains if c.decision and "not_affected" in c.decision.value),
+            "affected":    sum(1 for c in chains if c.decision and c.decision.value == "affected"),
+            "not_affected": sum(1 for c in chains if c.decision and c.decision.value == "not_affected_candidate"),
             "under_investigation": sum(1 for c in chains if c.decision and c.decision.value == "under_investigation"),
         },
     }
@@ -165,8 +165,6 @@ def run(
     if output_vex:
         write_vex(output_vex, project_artifact, chains)
         print(f"VEX written to {output_vex}")
-
-    return None
 
 
 _VEX_STATE_MAP = {

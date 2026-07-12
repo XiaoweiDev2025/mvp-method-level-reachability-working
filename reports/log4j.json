@@ -30,6 +30,11 @@
         "uncertain_features": [
           "invokedynamic_not_modelled"
         ],
+        "residual_risk_reason": [
+          "reflection_not_modelled",
+          "invokedynamic_not_modelled",
+          "future_code_change_not_modelled"
+        ],
         "engine": "asm-callgraph-1.0"
       },
       "runtime": {
@@ -43,6 +48,7 @@
       "risk_score": 0.6,
       "notes": "Static: not_reachable (conf=0.7) | Uncertain features: ['invokedynamic_not_modelled'] | Runtime: not_observed (conf=0.6)",
       "audit_record": null,
+      "audit_history": [],
       "remediation": {
         "priority": "MONITOR",
         "upgrade_path": [
@@ -87,6 +93,11 @@
         "uncertain_features": [
           "invokedynamic_not_modelled"
         ],
+        "residual_risk_reason": [
+          "reflection_not_modelled",
+          "invokedynamic_not_modelled",
+          "future_code_change_not_modelled"
+        ],
         "engine": "asm-callgraph-1.0"
       },
       "runtime": {
@@ -100,6 +111,7 @@
       "risk_score": 0.5,
       "notes": "Static: not_reachable (conf=0.7) | Uncertain features: ['invokedynamic_not_modelled'] | Runtime: not_observed (conf=0.6)",
       "audit_record": null,
+      "audit_history": [],
       "remediation": {
         "priority": "MONITOR",
         "upgrade_path": [
@@ -131,7 +143,7 @@
         ],
         "call_path_depth": 15,
         "trace_ids": [
-          "50b93a0c550dd9e980d2d7675cf93544"
+          "9c172e1c910d6b14fa1aee42d621b2f3"
         ]
       },
       "static": {
@@ -221,41 +233,106 @@
           }
         ],
         "uncertain_features": [],
+        "residual_risk_reason": [],
         "engine": "asm-callgraph-1.0"
       },
       "runtime": {
         "status": "observed",
         "confidence": 0.95,
         "trace_ids": [
-          "50b93a0c550dd9e980d2d7675cf93544"
+          "9c172e1c910d6b14fa1aee42d621b2f3"
         ],
         "observed_call_count": 1
       },
       "decision": "affected",
       "decision_confidence": 0.9,
       "risk_score": 10.0,
-      "notes": "Static: reachable (conf=0.9) | Path depth: 15 hops | Runtime: observed (conf=0.95) | Observed 1 call(s) | Trace IDs: ['50b93a0c550dd9e980d2d7675cf93544']",
+      "notes": "Static: reachable (conf=0.9) | Path depth: 15 hops | Runtime: observed (conf=0.95) | Observed 1 call(s) | Trace IDs: ['9c172e1c910d6b14fa1aee42d621b2f3']",
       "audit_record": null,
+      "audit_history": [],
       "remediation": {
         "priority": "URGENT",
         "upgrade_path": [
           {
             "artifact": "org.apache.logging.log4j:log4j-core",
             "from_version": ">=2.0-beta9,<2.15.0",
-            "to_version": "2.15.0"
+            "to_version": "2.17.0"
           }
         ],
         "entry_point_in_your_code": "com.example.App.main([Ljava/lang/String;)V",
         "fix_commit": "https://github.com/apache/logging-log4j2/commit/c77b3cb",
         "effort_estimate": "HIGH",
-        "notes": "Vulnerable method is statically reachable and observed at runtime. Fix before next release."
+        "notes": "Vulnerable method is statically reachable and observed at runtime. Fix before next release. 2.15.0 was the initial fix for CVE-2021-44228 but contained an incomplete patch (CVE-2021-45046, CVSS 9.0). 2.16.0 introduced CVE-2021-45105 (CVSS 7.5). Upgrade to 2.17.0 (Java 8+) or 2.12.4 (Java 7) as the minimum safe version."
+      }
+    },
+    {
+      "chain_id": "CVE-2022-42889::com.example:log4j-demo",
+      "cve": "CVE-2022-42889",
+      "project": "com.example:log4j-demo",
+      "vulnerable_component": "org.apache.commons:commons-text:>=1.5,<1.10.0",
+      "seed_method": "org.apache.commons.text.StringSubstitutor.replace",
+      "evidence_level": 2,
+      "evidence_summary": {
+        "dependency_match": true,
+        "static_reachable": false,
+        "runtime_observed": false,
+        "entry_points": [
+          "com.example.App.main([Ljava/lang/String;)V"
+        ],
+        "call_path_depth": 0,
+        "trace_ids": []
+      },
+      "static": {
+        "status": "not_reachable",
+        "confidence": 0.7,
+        "analysis_fingerprint": "95d861e0abd06a0b",
+        "entry_points_used": [
+          "com.example.App.main([Ljava/lang/String;)V"
+        ],
+        "call_path": [],
+        "call_path_annotated": [],
+        "uncertain_features": [
+          "invokedynamic_not_modelled"
+        ],
+        "residual_risk_reason": [
+          "reflection_not_modelled",
+          "invokedynamic_not_modelled",
+          "future_code_change_not_modelled"
+        ],
+        "engine": "asm-callgraph-1.0"
+      },
+      "runtime": {
+        "status": "not_observed",
+        "confidence": 0.6,
+        "trace_ids": [],
+        "observed_call_count": 0
+      },
+      "decision": "not_affected_candidate",
+      "decision_confidence": 0.595,
+      "risk_score": 1.0,
+      "notes": "Static: not_reachable (conf=0.7) | Uncertain features: ['invokedynamic_not_modelled'] | Runtime: not_observed (conf=0.6)",
+      "audit_record": null,
+      "audit_history": [],
+      "remediation": {
+        "priority": "MONITOR",
+        "upgrade_path": [
+          {
+            "artifact": "org.apache.commons:commons-text",
+            "from_version": ">=1.5,<1.10.0",
+            "to_version": "1.10.0"
+          }
+        ],
+        "entry_point_in_your_code": "",
+        "fix_commit": "https://github.com/apache/commons-text/commit/b9c8abaf3b47806c71b66ff25e6c4cbf99a89d50",
+        "effort_estimate": "LOW",
+        "notes": "No confirmed reachability. Increase test coverage to determine actual exposure, or upgrade when convenient."
       }
     }
   ],
   "summary": {
-    "total": 3,
-    "affected": 3,
-    "not_affected": 2,
+    "total": 4,
+    "affected": 1,
+    "not_affected": 3,
     "under_investigation": 0
   }
 }

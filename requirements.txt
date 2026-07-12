@@ -1,0 +1,6 @@
+pyyaml
+
+# Optional — only used by light_cvemapping.py / seed_ingestor.py to fetch fix
+# commit diffs and OSV records. Both modules fall back to urllib.request when
+# requests is not installed (see their _HAS_REQUESTS checks).
+# requests

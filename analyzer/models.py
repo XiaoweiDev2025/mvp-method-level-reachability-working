@@ -97,6 +97,16 @@ class AuditRecord:
     waiver_expires: Optional[str] = None   # ISO 8601 — if risk is temporarily accepted
     compensating_controls: str = ""        # Required when waiver_expires is set
 
+    def to_dict(self) -> dict:
+        return {
+            "reviewer":              self.reviewer,
+            "reviewed_at":           self.reviewed_at,
+            "decision_override":     self.decision_override,
+            "justification":         self.justification,
+            "waiver_expires":        self.waiver_expires,
+            "compensating_controls": self.compensating_controls,
+        }
+
 
 @dataclass
 class EvidenceChain:
@@ -119,12 +129,13 @@ class EvidenceChain:
     risk_score: Optional[float] = None   # 0.0 – 10.0 (CVSS-aligned scale)
 
     notes: str = ""
-    audit_record: Optional[AuditRecord] = None
+    audit_record: Optional[AuditRecord] = None   # latest audit, kept for backward compatibility
+    audit_history: list[AuditRecord] = field(default_factory=list)  # full reviewer sign-off trail
 
     def to_dict(self) -> dict:
         """Serialise to a plain dict for JSON/YAML output."""
         se = self.static_evidence
-        re = self.runtime_evidence
+        rt = self.runtime_evidence
         return {
             "chain_id": self.chain_id,
             "cve": self.cve,
@@ -135,10 +146,10 @@ class EvidenceChain:
             "evidence_summary": {
                 "dependency_match": True,
                 "static_reachable": se.status.value == "reachable" if se else False,
-                "runtime_observed": re.status.value == "observed" if re else False,
+                "runtime_observed": rt.status.value == "observed" if rt else False,
                 "entry_points": se.entry_points_used if se else [],
                 "call_path_depth": len(se.call_path) if se else 0,
-                "trace_ids": re.trace_ids if re else [],
+                "trace_ids": rt.trace_ids if rt else [],
             },
             "static": {
                 "status": se.status.value,
@@ -152,21 +163,15 @@ class EvidenceChain:
                 "engine": se.engine,
             } if se else None,
             "runtime": {
-                "status": re.status.value,
-                "confidence": re.confidence,
-                "trace_ids": re.trace_ids,
-                "observed_call_count": re.observed_call_count,
-            } if re else None,
+                "status": rt.status.value,
+                "confidence": rt.confidence,
+                "trace_ids": rt.trace_ids,
+                "observed_call_count": rt.observed_call_count,
+            } if rt else None,
             "decision": self.decision.value if self.decision else None,
             "decision_confidence": self.decision_confidence,
             "risk_score": self.risk_score,
             "notes": self.notes,
-            "audit_record": {
-                "reviewer": self.audit_record.reviewer,
-                "reviewed_at": self.audit_record.reviewed_at,
-                "decision_override": self.audit_record.decision_override,
-                "justification": self.audit_record.justification,
-                "waiver_expires": self.audit_record.waiver_expires,
-                "compensating_controls": self.audit_record.compensating_controls,
-            } if self.audit_record else None,
+            "audit_record": self.audit_record.to_dict() if self.audit_record else None,
+            "audit_history": [a.to_dict() for a in self.audit_history],
         }

@@ -33,6 +33,12 @@ invokedynamic, and dynamic class loading are not modelled; (2) code
 evolves — a method unreachable today may become reachable after a
 refactor. The specific value 0.10 is conservative and should be
 calibrated against a labelled exploit dataset in future work.
+
+L5 AUDITED findings no longer map to a static/runtime evidence tier, so
+their risk_score is recomputed from DECISION_BASE_MULTIPLIER (keyed by
+decision alone) whenever a human reviewer overrides the decision — see
+audit.py::apply_audit_to_dict. FIXED = 0.00 (confirmed remediated),
+MITIGATED = 0.10 (compensating controls reduce but don't eliminate exposure).
 """
 
 from __future__ import annotations
@@ -81,9 +87,24 @@ _EVIDENCE_MULTIPLIER: dict[tuple[str, str], float] = {
     ("not_affected_candidate", "2"): 0.10,
 }
 
+# Fallback multiplier keyed by decision alone (not evidence level). Used whenever
+# (decision, level) isn't in _EVIDENCE_MULTIPLIER above — most notably for L5
+# AUDITED findings, where the level no longer maps to a static/runtime evidence
+# tier but the decision (possibly reviewer-overridden) still needs a multiplier.
+DECISION_BASE_MULTIPLIER: dict[str, float] = {
+    "affected":               1.00,
+    "likely_affected":        0.75,
+    "under_investigation":    0.50,
+    "not_affected_candidate": 0.10,
+    "fixed":                  0.00,  # confirmed remediated — no residual exposure
+    "mitigated":              0.10,  # compensating controls reduce but don't eliminate exposure
+}
+
 def _risk_multiplier(decision: Decision, level: EvidenceLevel) -> float:
     key = (decision.value, str(level.value))
-    return _EVIDENCE_MULTIPLIER.get(key, 0.50)
+    if key in _EVIDENCE_MULTIPLIER:
+        return _EVIDENCE_MULTIPLIER[key]
+    return DECISION_BASE_MULTIPLIER.get(decision.value, 0.50)
 
 
 # ---------------------------------------------------------------------------
@@ -202,28 +223,6 @@ def _decide(
         Decision.AFFECTED,
         min(static.confidence, runtime.confidence),
     )
-
-
-def apply_audit(chain: EvidenceChain, audit_record: "AuditRecord") -> EvidenceChain:
-    """
-    Promote a finding to L5 AUDITED after human review.
-
-    The automated evidence (static, runtime) is preserved unchanged.
-    Only evidence_level, audit_record, and optionally decision are updated.
-    decision_confidence is capped at 0.98 — even human review is not infallible.
-    """
-    from copy import copy
-    from models import AuditRecord  # local import to avoid circular at module level
-
-    updated = copy(chain)
-    updated.audit_record = audit_record
-    updated.evidence_level = EvidenceLevel.L5_AUDITED
-
-    if audit_record.decision_override:
-        updated.decision = Decision(audit_record.decision_override)
-
-    updated.decision_confidence = min(0.98, chain.decision_confidence + 0.20)
-    return updated
 
 
 def _build_notes(

@@ -36,8 +36,8 @@
           "org.apache.logging.log4j.spi.AbstractLogger.logMessageTrackRecursion(Ljava/lang/String;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
           "org.apache.logging.log4j.spi.AbstractLogger.tryLogMessage(Ljava/lang/String;Ljava/lang/StackTraceElement;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
           "org.apache.logging.log4j.core.Logger.log(Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/Marker;Ljava/lang/String;Ljava/lang/StackTraceElement;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
-          "org.apache.logging.log4j.core.config.LockingReliabilityStrategy.log(Lorg/apache/logging/log4j/util/Supplier;Ljava/lang/String;Ljava/lang/String;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
-          "org.apache.logging.log4j.core.config.LoggerConfig.log(Ljava/lang/String;Ljava/lang/String;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
+          "org.apache.logging.log4j.core.config.DefaultReliabilityStrategy.log(Lorg/apache/logging/log4j/util/Supplier;Ljava/lang/String;Ljava/lang/String;Ljava/lang/StackTraceElement;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
+          "org.apache.logging.log4j.core.config.LoggerConfig.log(Ljava/lang/String;Ljava/lang/String;Ljava/lang/StackTraceElement;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
           "org.apache.logging.log4j.core.lookup.StrSubstitutor.replace(Lorg/apache/logging/log4j/core/LogEvent;Ljava/lang/String;)Ljava/lang/String;",
           "org.apache.logging.log4j.core.lookup.StrSubstitutor.substitute(Lorg/apache/logging/log4j/core/LogEvent;Ljava/lang/StringBuilder;II)Z",
           "org.apache.logging.log4j.core.lookup.StrSubstitutor.substitute(Lorg/apache/logging/log4j/core/LogEvent;Ljava/lang/StringBuilder;IILjava/util/List;)I",
@@ -78,11 +78,11 @@
             "edge_type": "CHA_EXPANSION[org.apache.logging.log4j.spi.AbstractLogger->org.apache.logging.log4j.core.Logger]"
           },
           {
-            "sig": "org.apache.logging.log4j.core.config.LockingReliabilityStrategy.log(Lorg/apache/logging/log4j/util/Supplier;Ljava/lang/String;Ljava/lang/String;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
-            "edge_type": "CHA_EXPANSION[org.apache.logging.log4j.core.config.ReliabilityStrategy->org.apache.logging.log4j.core.config.LockingReliabilityStrategy]"
+            "sig": "org.apache.logging.log4j.core.config.DefaultReliabilityStrategy.log(Lorg/apache/logging/log4j/util/Supplier;Ljava/lang/String;Ljava/lang/String;Ljava/lang/StackTraceElement;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
+            "edge_type": "CHA_EXPANSION[org.apache.logging.log4j.core.config.LocationAwareReliabilityStrategy->org.apache.logging.log4j.core.config.DefaultReliabilityStrategy]"
           },
           {
-            "sig": "org.apache.logging.log4j.core.config.LoggerConfig.log(Ljava/lang/String;Ljava/lang/String;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
+            "sig": "org.apache.logging.log4j.core.config.LoggerConfig.log(Ljava/lang/String;Ljava/lang/String;Ljava/lang/StackTraceElement;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
             "edge_type": "CALL"
           },
           {
@@ -123,19 +123,20 @@
       "risk_score": 10.0,
       "notes": "Static: reachable (conf=0.9) | Path depth: 15 hops | Runtime: observed (conf=0.95) | Observed 1 call(s) | Trace IDs: ['9c172e1c910d6b14fa1aee42d621b2f3']",
       "audit_record": null,
+      "audit_history": [],
       "remediation": {
         "priority": "URGENT",
         "upgrade_path": [
           {
             "artifact": "org.apache.logging.log4j:log4j-core",
             "from_version": ">=2.0-beta9,<2.15.0",
-            "to_version": "2.15.0"
+            "to_version": "2.17.0"
           }
         ],
         "entry_point_in_your_code": "com.example.App.main([Ljava/lang/String;)V",
         "fix_commit": "https://github.com/apache/logging-log4j2/commit/c77b3cb",
         "effort_estimate": "HIGH",
-        "notes": "Vulnerable method is statically reachable and observed at runtime. Fix before next release."
+        "notes": "Vulnerable method is statically reachable and observed at runtime. Fix before next release. 2.15.0 was the initial fix for CVE-2021-44228 but contained an incomplete patch (CVE-2021-45046, CVSS 9.0). 2.16.0 introduced CVE-2021-45105 (CVSS 7.5). Upgrade to 2.17.0 (Java 8+) or 2.12.4 (Java 7) as the minimum safe version."
       }
     }
   ],

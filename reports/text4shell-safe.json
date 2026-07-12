@@ -5,7 +5,7 @@
       "chain_id": "CVE-2022-42889::com.example:safe-text4shell-demo",
       "cve": "CVE-2022-42889",
       "project": "com.example:safe-text4shell-demo",
-      "vulnerable_component": "org.apache.commons:commons-text:>=1.1,<1.10.0",
+      "vulnerable_component": "org.apache.commons:commons-text:>=1.5,<1.10.0",
       "seed_method": "org.apache.commons.text.StringSubstitutor.replace",
       "evidence_level": 2,
       "evidence_summary": {
@@ -30,6 +30,11 @@
         "uncertain_features": [
           "invokedynamic_not_modelled"
         ],
+        "residual_risk_reason": [
+          "reflection_not_modelled",
+          "invokedynamic_not_modelled",
+          "future_code_change_not_modelled"
+        ],
         "engine": "asm-callgraph-1.0"
       },
       "runtime": null,
@@ -38,12 +43,13 @@
       "risk_score": 1.0,
       "notes": "Static: not_reachable (conf=0.7) | Uncertain features: ['invokedynamic_not_modelled']",
       "audit_record": null,
+      "audit_history": [],
       "remediation": {
         "priority": "MONITOR",
         "upgrade_path": [
           {
             "artifact": "org.apache.commons:commons-text",
-            "from_version": ">=1.1,<1.10.0",
+            "from_version": ">=1.5,<1.10.0",
             "to_version": "1.10.0"
           }
         ],
@@ -56,7 +62,7 @@
   ],
   "summary": {
     "total": 1,
-    "affected": 1,
+    "affected": 0,
     "not_affected": 1,
     "under_investigation": 0
   }

@@ -299,9 +299,19 @@ def find_entry_points(
                 entry_points.append(method_sig)
 
     if extra_entry_points:
+        dropped = []
         for ep in extra_entry_points:
-            if ep in cg.callers and ep not in entry_points:
-                entry_points.append(ep)
+            if ep in cg.callers:
+                if ep not in entry_points:
+                    entry_points.append(ep)
+            else:
+                dropped.append(ep)
+        if dropped:
+            print(
+                f"  [WARN] --extra-entry-points not found in call graph (no outgoing "
+                f"calls recorded), dropped: {dropped}",
+                file=sys.stderr,
+            )
 
     return entry_points
 

@@ -34,6 +34,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+from fusion import CVSS_BASE, DECISION_BASE_MULTIPLIER, DEFAULT_CVSS
 from models import AuditRecord, Decision
 
 
@@ -66,19 +67,20 @@ def apply_audit_to_dict(finding: dict, audit_record: AuditRecord) -> dict:
 
     if audit_record.decision_override:
         finding["decision"] = audit_record.decision_override
+        # risk_score is a function of (cve, decision); re-derive it so an
+        # overridden decision (e.g. "fixed") doesn't leave a stale pre-audit
+        # risk_score (e.g. 10.0) in the report — see fusion.DECISION_BASE_MULTIPLIER.
+        base_cvss = CVSS_BASE.get(finding.get("cve", ""), DEFAULT_CVSS)
+        multiplier = DECISION_BASE_MULTIPLIER.get(finding["decision"], 0.50)
+        finding["risk_score"] = round(base_cvss * multiplier, 1)
 
     # Human review raises confidence, capped at 0.98
     prev_conf = finding.get("decision_confidence", 0.5)
     finding["decision_confidence"] = round(min(0.98, prev_conf + 0.20), 4)
 
-    finding["audit_record"] = {
-        "reviewer":              audit_record.reviewer,
-        "reviewed_at":           audit_record.reviewed_at,
-        "decision_override":     audit_record.decision_override,
-        "justification":         audit_record.justification,
-        "waiver_expires":        audit_record.waiver_expires,
-        "compensating_controls": audit_record.compensating_controls,
-    }
+    record_dict = audit_record.to_dict()
+    finding.setdefault("audit_history", []).append(record_dict)
+    finding["audit_record"] = record_dict
     return finding
 
 

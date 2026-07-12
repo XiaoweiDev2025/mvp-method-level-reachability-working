@@ -66,7 +66,7 @@ data/
   traces/               OTel span logs from demo runs
 reports/                JSON + VEX risk reports (generated output)
 docs/
-  SDD-v1.0.pdf          Software Design Document (system design, data model, module pseudocode)
+  Software Design Document.pdf   System design, data model, module pseudocode
 ```
 
 > **Implementation note (SDD vs. actual code):** The SDD (Section 4.1.3) lists WALA, Soot, and SootUp as candidate static analysis frameworks. The implementation instead uses a custom ASM-based call graph extractor (`tools/callgraph-extractor/`) with a lightweight Python BFS engine. This choice was made during implementation to avoid JVM tool startup overhead and to allow precise control over edge types (CALL / EXTENDS / IMPLEMENTS) needed for the annotated call path feature. The design intent — bytecode-level CHA + BFS reachability — is unchanged.
@@ -145,7 +145,7 @@ Package-level scanners over-approximate: they report every (app, CVE) pair where
 |-----|-----------|-------------------|------------|-------------|
 | CVE-2021-44228 (Log4Shell) | log4j-core 2.14.1 | `JndiLookup.lookup()` | 15 hops | L4 AFFECTED (risk=10.0) |
 | CVE-2021-29425 | commons-io 2.6 | `FilenameUtils.getPrefixLength()` | 3 hops | L3 UNDER_INVESTIGATION (risk=2.4) |
-| CVE-2018-1002200 (Zip-Slip) | plexus-archiver 3.5 | `AbstractUnArchiver.extractFile()` | 4 hops | L3 UNDER_INVESTIGATION (risk=2.75) |
+| CVE-2018-1002200 (Zip-Slip) | plexus-archiver 3.5 | `AbstractUnArchiver.extractFile()` | 4 hops | L3 UNDER_INVESTIGATION (risk=2.8) |
 | CVE-2022-42889 (Text4Shell) | commons-text 1.9 | `StringSubstitutor.replace()` | 2 hops | L3 UNDER_INVESTIGATION (risk=4.9) |
 
 ---

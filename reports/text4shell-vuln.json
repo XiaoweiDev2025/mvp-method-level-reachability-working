@@ -5,7 +5,7 @@
       "chain_id": "CVE-2022-42889::com.example:vulnerable-text4shell-demo",
       "cve": "CVE-2022-42889",
       "project": "com.example:vulnerable-text4shell-demo",
-      "vulnerable_component": "org.apache.commons:commons-text:>=1.1,<1.10.0",
+      "vulnerable_component": "org.apache.commons:commons-text:>=1.5,<1.10.0",
       "seed_method": "org.apache.commons.text.StringSubstitutor.replace",
       "evidence_level": 3,
       "evidence_summary": {
@@ -40,6 +40,7 @@
           }
         ],
         "uncertain_features": [],
+        "residual_risk_reason": [],
         "engine": "asm-callgraph-1.0"
       },
       "runtime": null,
@@ -48,12 +49,13 @@
       "risk_score": 4.9,
       "notes": "Static: reachable (conf=0.9) | Path depth: 2 hops",
       "audit_record": null,
+      "audit_history": [],
       "remediation": {
         "priority": "MONITOR",
         "upgrade_path": [
           {
             "artifact": "org.apache.commons:commons-text",
-            "from_version": ">=1.1,<1.10.0",
+            "from_version": ">=1.5,<1.10.0",
             "to_version": "1.10.0"
           }
         ],

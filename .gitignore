@@ -16,15 +16,24 @@ __pycache__/
 **/target/maven-status/
 **/target/original-*.jar
 **/target/surefire-reports/
+**/target/*.jar
+**/target/dependency/
+**/target/dependency-check-report.json
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Gradle build output
+# Gradle/Eclipse build output
 **/build/
 **/.gradle/
+**/bin/
 
 # Temp files
 *.tmp
 callgraph.tmp.txt
+
+# Personal thesis/literature notes (not for the repo)
+docs/literature-notes.md
+docs/references/
+docs/thesis/
