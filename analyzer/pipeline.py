@@ -28,7 +28,7 @@ from fusion import fuse
 from models import EvidenceChain
 from remediation import RemediationAdvice, build_remediation
 from runtime_analyzer import analyze_traces
-from seed_loader import Seed, load_all_seeds
+from seed_loader import Seed, load_all_seeds_with_errors
 from static_analyzer import StaticAnalyzer
 
 ROOT          = Path(__file__).parent.parent
@@ -92,12 +92,20 @@ def run(
     extra_entry_points: list[str] | None = None,
 ) -> None:
 
-    seeds = load_all_seeds(SEEDS_DIR)
+    all_seeds, seed_errors = load_all_seeds_with_errors(SEEDS_DIR)
+    seeds = all_seeds
     if cve_filter:
         seeds = {k: v for k, v in seeds.items() if k in cve_filter}
 
     if not seeds:
-        print(f"No seeds found for filter: {cve_filter}", file=sys.stderr)
+        if seed_errors:
+            print(
+                f"No usable seeds found for filter: {cve_filter} "
+                f"({len(seed_errors)} seed file(s) were skipped as malformed — see [WARN] lines above)",
+                file=sys.stderr,
+            )
+        else:
+            print(f"No seeds found for filter: {cve_filter}", file=sys.stderr)
         sys.exit(1)
 
     analyzer = StaticAnalyzer(EXTRACTOR_JAR)

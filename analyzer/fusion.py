@@ -100,6 +100,21 @@ DECISION_BASE_MULTIPLIER: dict[str, float] = {
     "mitigated":              0.10,  # compensating controls reduce but don't eliminate exposure
 }
 
+def risk_score_for_decision(cve: str, decision_value: str) -> float:
+    """
+    CVSS base × decision multiplier, ignoring evidence_level.
+
+    Used by audit.py to recompute risk_score for L5 AUDITED findings, where the
+    pre-audit evidence_level no longer determines exposure — only the (possibly
+    reviewer-overridden) decision does. Centralised here so the formula and the
+    multiplier table have exactly one definition; audit.py must not reimplement
+    this inline.
+    """
+    base_cvss = CVSS_BASE.get(cve, DEFAULT_CVSS)
+    multiplier = DECISION_BASE_MULTIPLIER.get(decision_value, 0.50)
+    return round(base_cvss * multiplier, 1)
+
+
 def _risk_multiplier(decision: Decision, level: EvidenceLevel) -> float:
     key = (decision.value, str(level.value))
     if key in _EVIDENCE_MULTIPLIER:

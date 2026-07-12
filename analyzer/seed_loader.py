@@ -6,11 +6,12 @@ the specific Java method that contains or triggers the vulnerable behaviour.
 Seeds are the anchor point for both static and runtime reachability analysis.
 """
 
-import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 import yaml
+
+from warnlog import warn
 
 
 @dataclass
@@ -113,23 +114,36 @@ def load_seed(path: Path) -> Seed:
     )
 
 
-def load_all_seeds(seeds_dir: Path) -> dict[str, Seed]:
+def load_all_seeds_with_errors(seeds_dir: Path) -> tuple[dict[str, Seed], list[tuple[Path, str]]]:
     """
     Load all *.yaml files from a directory.
-    Returns a dict keyed by CVE ID, e.g. {"CVE-2021-44228": Seed(...), ...}
 
     A malformed seed file is skipped (with a warning) rather than aborting
     the whole batch — one bad file shouldn't block assessment of every other CVE.
+
+    Returns (seeds, errors):
+      seeds  — dict keyed by CVE ID, e.g. {"CVE-2021-44228": Seed(...), ...}
+      errors — [(path, reason), ...] for every file that was skipped, so a caller
+                can tell "no seed files matched the filter" apart from "seeds
+                existed but were malformed" instead of both looking like an
+                empty result.
     """
-    seeds = {}
+    seeds: dict[str, Seed] = {}
+    errors: list[tuple[Path, str]] = []
     for yaml_file in sorted(seeds_dir.glob("*.yaml")):
         try:
             seed = load_seed(yaml_file)
         except Exception as exc:
-            print(f"  [WARN] Skipping malformed seed {yaml_file}: {exc}", file=sys.stderr)
+            warn("seed-loader", f"Skipping malformed seed {yaml_file}: {exc}")
+            errors.append((yaml_file, str(exc)))
             continue
         seeds[seed.cve] = seed
-    return seeds
+    return seeds, errors
+
+
+def load_all_seeds(seeds_dir: Path) -> dict[str, Seed]:
+    """Load all *.yaml files from a directory. See load_all_seeds_with_errors for details."""
+    return load_all_seeds_with_errors(seeds_dir)[0]
 
 
 if __name__ == "__main__":

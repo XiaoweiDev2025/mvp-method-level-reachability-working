@@ -30,6 +30,10 @@ public class CallGraphExtractor {
     private static final Set<String> edges = new LinkedHashSet<>();
     private static int classesSkipped = 0;
 
+    private static void warn(String fmt, Object... args) {
+        System.err.printf("  [WARN] " + fmt + "%n", args);
+    }
+
     public static void main(String[] args) throws Exception {
         if (args.length < 2) {
             System.err.println("Usage: CallGraphExtractor <output.txt> <jar1> [jar2] ...");
@@ -49,7 +53,7 @@ public class CallGraphExtractor {
                 // the pipeline needs whatever edges the other JARs produced, not a
                 // silent zero-output run indistinguishable from "found nothing".
                 jarsFailed++;
-                System.err.printf("  [WARN] Skipping unreadable JAR %s: %s%n", args[i], e);
+                warn("Skipping unreadable JAR %s: %s", args[i], e);
             }
         }
 
@@ -78,13 +82,18 @@ public class CallGraphExtractor {
 
                 try {
                     processClass(classBytes);
+                } catch (OutOfMemoryError e) {
+                    // Unlike a malformed class, this signals the JVM itself is out of
+                    // heap — continuing to "skip and proceed" would silently produce a
+                    // truncated call graph indistinguishable from a clean run. Let it
+                    // propagate and abort instead of masking it as a per-class warning.
+                    throw e;
                 } catch (Throwable t) {
                     // A single malformed/exotic class entry (multi-release JAR metadata,
                     // truncated or obfuscated bytecode, etc.) must not abort extraction
                     // for the rest of the JAR.
                     classesSkipped++;
-                    System.err.printf("  [WARN] Skipping unparseable class %s in %s: %s%n",
-                            entry.getName(), jarPath, t);
+                    warn("Skipping unparseable class %s in %s: %s", entry.getName(), jarPath, t);
                 }
             }
         }

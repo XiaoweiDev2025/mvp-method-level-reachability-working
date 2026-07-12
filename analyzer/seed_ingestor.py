@@ -39,6 +39,7 @@ from typing import Optional
 sys.path.insert(0, str(Path(__file__).parent))
 
 from light_cvemapping import MethodCandidate, fetch_diff, parse_diff
+from warnlog import warn
 
 try:
     import yaml as _yaml
@@ -242,10 +243,10 @@ def _maven_package(affected: list[dict]) -> tuple[str, str]:
                 names.append(name)
 
     if len(names) > 1:
-        print(
-            f"  [seed-ingestor] [WARN] Advisory affects {len(names)} distinct Maven "
-            f"artifacts ({names}); only the first is used for this seed skeleton.",
-            file=sys.stderr,
+        warn(
+            "seed-ingestor",
+            f"Advisory affects {len(names)} distinct Maven artifacts ({names}); "
+            f"only the first is used for this seed skeleton.",
         )
 
     if names:
@@ -517,8 +518,8 @@ def ingest(
             candidates = [c for c in candidates if "src/test/java/" not in c.source_file]
             candidates = enhance_candidates(candidates, meta.cwe_ids, diff_text)
         except Exception as exc:
-            print(f"  [seed-ingestor] Diff fetch failed: {exc}", file=sys.stderr)
-            print(f"  [seed-ingestor] Continuing with skeleton only (status: NEEDS_METHOD_MAPPING)", file=sys.stderr)
+            warn("seed-ingestor", f"Diff fetch failed: {exc}")
+            warn("seed-ingestor", "Continuing with skeleton only (status: NEEDS_METHOD_MAPPING)")
 
     return meta, candidates, commit_url
 

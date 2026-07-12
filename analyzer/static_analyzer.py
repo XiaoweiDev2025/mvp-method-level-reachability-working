@@ -30,6 +30,7 @@ from typing import Optional
 
 from models import StaticEvidence, StaticReachability
 from seed_loader import VulnerableMethod
+from warnlog import warn
 
 
 # ---------------------------------------------------------------------------
@@ -307,10 +308,10 @@ def find_entry_points(
             else:
                 dropped.append(ep)
         if dropped:
-            print(
-                f"  [WARN] --extra-entry-points not found in call graph (no outgoing "
+            warn(
+                "static-analyzer",
+                f"--extra-entry-points not found in call graph (no outgoing "
                 f"calls recorded), dropped: {dropped}",
-                file=sys.stderr,
             )
 
     return entry_points
@@ -375,10 +376,10 @@ class StaticAnalyzer:
 
         entry_points = find_entry_points(cg, project_prefix, extra_entry_points)
         if not entry_points:
-            print(
-                f"  [WARN] No entry points found"
+            warn(
+                "static-analyzer",
+                "No entry points found"
                 + (f" under prefix '{project_prefix}'" if project_prefix else ""),
-                file=sys.stderr,
             )
             return StaticEvidence(
                 status=StaticReachability.UNKNOWN,

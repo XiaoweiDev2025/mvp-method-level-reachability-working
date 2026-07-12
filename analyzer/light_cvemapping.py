@@ -53,6 +53,9 @@ try:
 except ImportError:
     _HAS_REQUESTS = False
 
+sys.path.insert(0, str(Path(__file__).parent))
+from warnlog import warn
+
 
 # ---------------------------------------------------------------------------
 # Security evidence vocabulary
@@ -304,22 +307,23 @@ _CLASS_DECL = re.compile(
 _HUNK_HDR   = re.compile(r"^@@[^@]+@@\s*(.*)")
 
 
-def _declared_in(name: str, text: str) -> bool:
+def _declared_in(name: str, text: str, is_ctor: bool = False) -> bool:
     """
     True if `name` appears as an actual method/constructor declaration in text,
     as opposed to merely being called/referenced. Used to distinguish "this method
     was deleted" from "this method is still declared elsewhere but also called here".
+
+    Deliberately uses _METHOD_FULL/_CTOR_FULL (full signature + opening brace),
+    not _METHOD_HEADER/_CTOR_HEADER: the HEADER patterns are relaxed for the
+    truncated, single-line hunk-header text they were designed for (Strategy A)
+    and are too loose for scanning arbitrary body lines — they match calls and
+    even comments (e.g. "return getPrefixLength(path);"). Matching against the
+    whole text (not line-by-line) also means a declaration whose signature
+    wraps across multiple added lines is still recognized.
     """
-    for line in text.splitlines():
-        if name not in line:
-            continue
-        m = _METHOD_HEADER.search(line)
-        if m and m.group(1) == name:
-            return True
-        m = _CTOR_HEADER.search(line)
-        if m and m.group(1) == name:
-            return True
-    return False
+    pattern = _CTOR_FULL if is_ctor else _METHOD_FULL
+    group = 1 if is_ctor else 2
+    return any(m.group(group) == name for m in pattern.finditer(text))
 
 
 # ---------------------------------------------------------------------------
@@ -368,9 +372,23 @@ def parse_diff(diff_text: str, package_filter: Optional[str] = None) -> list[Met
         return "medium" if has_terms else "low"
 
     def flush_hunk() -> None:
+        """
+        Process the buffered hunk, isolating failures to this hunk alone — a
+        single malformed/unexpected hunk must not abort candidate extraction
+        for the rest of the commit (same principle as seed_loader.py's
+        per-file isolation in load_all_seeds_with_errors).
+        """
         if not (removed_lines or added_lines):
             return
+        try:
+            _flush_hunk_unsafe()
+        except Exception as exc:
+            warn(
+                "light-cvemap",
+                f"Skipping unparseable hunk in {ctx.path or '?'} (near {current_hdr!r}): {exc}",
+            )
 
+    def _flush_hunk_unsafe() -> None:
         stats    = HunkStats(len(removed_lines), len(added_lines))
         semantic = _semantic(removed_lines, added_lines)
         all_text = "\n".join(removed_lines + added_lines + context_lines)
@@ -415,7 +433,10 @@ def parse_diff(diff_text: str, package_filter: Optional[str] = None) -> list[Met
                         break
                 return
             seen.add(key)
-            is_deleted_method = not _declared_in(mname if mname != "<init>" else class_name, added_text)
+            is_ctor = mname == "<init>"
+            is_deleted_method = not _declared_in(
+                class_name if is_ctor else mname, added_text, is_ctor=is_ctor
+            )
             this_sem = semantic_ if ctx.is_deleted else ("method_deleted" if is_deleted_method else semantic_)
             candidates.append(MethodCandidate(
                 fqcn            = ctx.fqcn,
