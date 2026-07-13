@@ -242,7 +242,7 @@ This work differs along four axes: (1) it combines static BFS reachability with 
 
 [6] GitHub / Semmle. *CodeQL*. https://codeql.github.com/
 
-[7] Shen, X. et al. *Beyond Package-Level: Method-Level Vulnerability Reachability Analysis.* ESE 2025.
+[7] Shen, Y., Gao, X., Sun, H., Guo, Y. *Understanding vulnerabilities in software supply chains.* Empirical Software Engineering, 30(1), Article 20, 2025.
 
 ---
 
