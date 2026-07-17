@@ -224,13 +224,15 @@ def bfs_reachable(
     cg: CallGraph,
     entry_points: list[str],
     seed: VulnerableMethod,
-) -> tuple[bool, list[str], list[dict]]:
+) -> tuple[bool, list[str], list[dict], Optional[str]]:
     """
     Breadth-first search from entry_points through the call graph.
-    Returns (is_reachable, path, annotated_path) where:
+    Returns (is_reachable, path, annotated_path, match_type) where:
       path            — list of method signatures from entry to seed
       annotated_path  — same path, each hop tagged with its edge_type:
                         ENTRY_POINT | CALL | CHA_EXPANSION[X→Y] | INHERITED
+      match_type      — "exact" or "relocated_package_suspected" (see _matches_seed),
+                        None if not reachable
 
     BFS (not DFS) because:
       - It finds the SHORTEST path, which makes the evidence easier to audit.
@@ -254,8 +256,9 @@ def bfs_reachable(
         visited.add(current)
 
         # Check: does current match the seed?
-        if _matches_seed(current, seed):
-            return True, path, annotated
+        match_type = _matches_seed(current, seed)
+        if match_type:
+            return True, path, annotated, match_type
 
         # Get direct callees and expand via CHA (returns dict[sig, edge_type])
         for direct_callee in cg.callers.get(current, set()):
@@ -267,7 +270,7 @@ def bfs_reachable(
                         annotated + [{"sig": callee, "edge_type": edge_type}],
                     ))
 
-    return False, [], []
+    return False, [], [], None
 
 
 # ---------------------------------------------------------------------------
@@ -392,14 +395,24 @@ class StaticAnalyzer:
 
         print(f"  [INFO] Entry points ({len(entry_points)}): {entry_points}", file=sys.stderr)
 
-        reachable, path, annotated_path = bfs_reachable(cg, entry_points, seed_method)
+        reachable, path, annotated_path, match_type = bfs_reachable(cg, entry_points, seed_method)
 
         if reachable:
+            confidence = 0.9    # 0.9 not 1.0: CHA may have false positive dispatch targets
+            uncertain_features = []
+            if match_type == "relocated_package_suspected":
+                # Seed identity inferred from simple class name + method + descriptor,
+                # not the full FQCN — consistent with the class being repackaged by a
+                # shading tool (e.g. maven-shade-plugin relocation), but not verified
+                # against bytecode content. Lower confidence than an exact match.
+                confidence = 0.6
+                uncertain_features.append("relocated_package_suspected")
             return StaticEvidence(
                 status=StaticReachability.REACHABLE,
-                confidence=0.9,    # 0.9 not 1.0: CHA may have false positive dispatch targets
+                confidence=confidence,
                 call_path=path,
                 call_path_annotated=annotated_path,
+                uncertain_features=uncertain_features,
                 entry_points_used=entry_points,
                 engine="asm-callgraph-1.0",
                 analysis_scope=", ".join(str(j) for j in app_jars),
@@ -456,36 +469,55 @@ def _method_and_desc_of(sig: str) -> Optional[str]:
     return prefix[dot + 1:] + suffix
 
 
-def _matches_seed(method_sig: str, seed: VulnerableMethod) -> bool:
+def _simple_class_name(fqcn: str) -> str:
+    """org.example.Foo -> Foo (nested classes keep their '$' separator, e.g. Foo$Inner)."""
+    return fqcn.rsplit(".", 1)[-1]
+
+
+def _matches_seed(method_sig: str, seed: VulnerableMethod) -> Optional[str]:
     """
     Check if a call graph signature matches the seed method definition.
 
-    Matching rules:
-      1. FQCN must match exactly.
-      2. Method name must match exactly.
-      3. If seed has a descriptor, it must match too. If not, name match suffices.
+    Returns the match tier, or None if there is no match:
+      "exact"                       — FQCN, method name, and descriptor (if given) all match.
+      "relocated_package_suspected" — method name and descriptor match, and the class's
+                                       simple name matches, but the package prefix differs.
+                                       This is the fingerprint maven-shade-plugin's package
+                                       relocation leaves behind: it rewrites only the package
+                                       prefix (e.g. org.codehaus.plexus -> com.myorg.shaded.
+                                       plexus), never the class's simple name, its method
+                                       names, or their descriptors. Reported at lower
+                                       confidence because the match is inferred from name
+                                       structure, not from comparing bytecode content — a
+                                       true renamed/obfuscated clone (distinct from plain
+                                       relocation) will not match this either, which is a
+                                       deliberate scope boundary, not an oversight.
+      None                          — no match.
 
     The call graph signature format is: "fqcn.method(descriptor)return"
     The seed.full_signature is: "fqcn.method(descriptor)return"
-    So for seeds with descriptors, we just compare the full strings.
     """
     cls = _class_of(method_sig)
     method_and_desc = _method_and_desc_of(method_sig)
 
     if not cls or not method_and_desc:
-        return False
-
-    if cls != seed.fqcn:
-        return False
+        return None
 
     # method_and_desc looks like: "lookup(Lorg/...;)Ljava/lang/String;"
     method_name = method_and_desc.split("(")[0]
     if method_name != seed.method:
-        return False
+        return None
 
     # If seed has a descriptor, require it to match exactly.
     if seed.descriptor:
         descriptor_in_sig = "(" + method_and_desc.split("(", 1)[1] if "(" in method_and_desc else ""
-        return descriptor_in_sig == seed.descriptor
+        if descriptor_in_sig != seed.descriptor:
+            return None
 
-    return True  # name match is enough when no descriptor is specified
+    if cls == seed.fqcn:
+        return "exact"
+
+    if _simple_class_name(cls) == _simple_class_name(seed.fqcn):
+        return "relocated_package_suspected"
+
+    return None

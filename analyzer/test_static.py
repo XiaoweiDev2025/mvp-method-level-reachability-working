@@ -10,8 +10,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from seed_loader import load_seed
-from static_analyzer import StaticAnalyzer
+from seed_loader import load_seed, VulnerableMethod
+from static_analyzer import StaticAnalyzer, _matches_seed
 
 ROOT = Path(__file__).parent.parent
 SEEDS_DIR = ROOT / "data" / "seeds"
@@ -72,6 +72,48 @@ def test_log4shell():
     return True
 
 
+def test_seed_matching():
+    print("=" * 60)
+    print("Test: seed matching tiers (exact / relocated / no match)")
+    print("=" * 60)
+
+    seed = VulnerableMethod(
+        fqcn="org.codehaus.plexus.archiver.AbstractUnArchiver",
+        method="extractFile",
+        descriptor="(Ljava/io/File;Ljava/io/File;Ljava/io/InputStream;Ljava/lang/String;"
+                    "Ljava/util/Date;ZLjava/lang/Integer;Ljava/lang/String;)V",
+        confidence="high",
+    )
+
+    exact_sig = (
+        "org.codehaus.plexus.archiver.AbstractUnArchiver.extractFile"
+        "(Ljava/io/File;Ljava/io/File;Ljava/io/InputStream;Ljava/lang/String;"
+        "Ljava/util/Date;ZLjava/lang/Integer;Ljava/lang/String;)V"
+    )
+    relocated_sig = (
+        "com.myorg.shaded.plexus.archiver.AbstractUnArchiver.extractFile"
+        "(Ljava/io/File;Ljava/io/File;Ljava/io/InputStream;Ljava/lang/String;"
+        "Ljava/util/Date;ZLjava/lang/Integer;Ljava/lang/String;)V"
+    )
+    unrelated_sig = "com.example.other.Thing.doStuff()V"
+    renamed_class_sig = (
+        "com.myorg.shaded.plexus.archiver.UnArchiverImpl.extractFile"
+        "(Ljava/io/File;Ljava/io/File;Ljava/io/InputStream;Ljava/lang/String;"
+        "Ljava/util/Date;ZLjava/lang/Integer;Ljava/lang/String;)V"
+    )
+
+    assert _matches_seed(exact_sig, seed) == "exact"
+    assert _matches_seed(relocated_sig, seed) == "relocated_package_suspected"
+    assert _matches_seed(unrelated_sig, seed) is None
+    # A genuinely renamed class (not just relocated) must not match — that is
+    # a deliberate scope boundary, not a bug: distinguishing it from relocation
+    # would require bytecode clone detection, which this analyzer does not do.
+    assert _matches_seed(renamed_class_sig, seed) is None
+
+    print("  PASS: exact match, relocated-package match, and non-matches all correct")
+    return True
+
+
 if __name__ == "__main__":
-    ok = test_log4shell()
+    ok = test_log4shell() and test_seed_matching()
     sys.exit(0 if ok else 1)
