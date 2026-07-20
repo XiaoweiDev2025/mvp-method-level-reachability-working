@@ -5,16 +5,16 @@ A prototype framework for assessing whether known vulnerable methods in Java Mav
 **What this tool does:**
 - Extracts a bytecode-level call graph from application JARs using a custom ASM-based extractor
 - Applies BFS reachability with CHA (Class Hierarchy Analysis) to determine whether a vulnerable method is callable from application entry points
-- Correlates static reachability with runtime OpenTelemetry span evidence to distinguish observed exploitation paths from theoretical ones
+- Correlates static reachability with OpenTelemetry runtime evidence to distinguish runtime-observed vulnerable-method execution from statically inferred reachability
 - Fuses both evidence types into a six-level evidence ladder (L0–L5) with explicit confidence scores and residual-risk reasoning
-- Emits JSON evidence chains and CycloneDX 1.5 VEX documents suitable for CRA vulnerability-handling documentation
+- Emits JSON evidence chains and CycloneDX 1.5 VEX documents intended to support CRA vulnerability-handling documentation
 - Supports human sign-off via `AuditRecord` (L5), closing the loop from automated detection to auditable decision
 
 ---
 
 ## Key Result
 
-Across 8 app-CVE evaluation cases covering 4 CVEs and their safe variants, package-level scanners would report all 8 applications as vulnerable (affected dependency version present). This prototype classified 4 of those findings as statically not reachable from the configured application entry points. Under the proposed reachability-adjusted scoring model, aggregate CVSS-weighted exposure was reduced from 60.2 to 23.2, a 61.5% exposure re-weighting reduction.
+Across 8 app-CVE evaluation cases covering 4 CVEs and their non-reachable control variants, package-level scanners would report all 8 applications as vulnerable (affected dependency version present). This prototype classified 4 of those findings as statically not reachable from the configured application entry points. Under the proposed reachability-adjusted scoring model, aggregate CVSS-weighted exposure was reduced from 60.2 to 23.2, a 61.5% exposure re-weighting reduction.
 
 > This metric quantifies how method-level reachability changes vulnerability prioritisation under the scoring model. It is not a claim that real-world attack probability was reduced by 61.5%.
 
@@ -91,7 +91,7 @@ The pipeline produced the same evidence structure as on the bundled demos, from 
 
 ## Evaluation
 
-Package-level scanners over-approximate: they report every (app, CVE) pair where the vulnerable dependency version is present, regardless of whether the vulnerable code path is reachable. The table below tests where method-level reachability narrows that set: for each CVE, one application actively uses the vulnerable method (`vulnerable-*-demo`) and one uses the same dependency version without calling it (`safe-*-demo`).
+Package-level scanners over-approximate: they report every (app, CVE) pair where the vulnerable dependency version is present, regardless of whether the vulnerable code path is reachable. The table below tests where method-level reachability narrows that set: for each CVE, one application actively uses the vulnerable method (`vulnerable-*-demo`) and one uses the same dependency version without calling it, serving as a non-reachable control variant (`safe-*-demo`).
 
 | CVE | App | Dep version | Package-level scanner | This tool | Reachability outcome |
 |-----|-----|-------------|----------------------|-----------|----------------------|
@@ -160,6 +160,8 @@ Package-level scanners over-approximate: they report every (app, CVE) pair where
 | NOT_REACHABLE | any | not_affected_candidate | L2 |
 | UNKNOWN | any | under_investigation | L1 |
 
+> `REACHABLE` / `NOT_REACHABLE` are the result of the static call-graph model under the current analysis scope (see [Limitations](#limitations)), not a general claim about the deployed application's real-world exposure.
+
 **Risk score** = CVSS base score × evidence multiplier (L4=1.0, L3 likely=0.75, L3 under=0.50, L2=0.10)
 
 **Remediation priority** = URGENT (affected) / RECOMMENDED (likely_affected) / MONITOR (others)
@@ -184,13 +186,15 @@ Package-level scanners over-approximate: they report every (app, CVE) pair where
 
 ## CRA Compliance Notes
 
-This tool is designed to produce evidence suitable for EU Cyber Resilience Act (CRA) conformity assessment:
+This prototype is designed to produce technical evidence that may support EU Cyber Resilience Act (CRA) conformity assessment workflows:
 
 - **`analysis_fingerprint`** makes each report reproducible: given the same callgraph file and seed, the result is verifiable.
 - **`--output-vex`** produces a CycloneDX 1.5 VEX document. VEX is a machine-readable format for communicating per-CVE exploitability status and can support vulnerability management and conformity-assessment workflows.
-- **`AuditRecord`** (populated at L5) captures reviewer identity, timestamp, justification, and waiver expiry: the chain-of-custody elements a conformity assessor will look for.
+- **`AuditRecord`** (populated at L5) captures reviewer identity, timestamp, justification, and waiver expiry: audit metadata that may be relevant to conformity assessment.
 - **`generated_at`** on a report containing an L4 AFFECTED finding can support time-sensitive vulnerability management and regulatory reporting workflows.
 - **`evidence_terms`** in seed candidate output are drawn from a predefined, CWE-keyed vocabulary, not a machine-learning model. Every term is traceable to a specific keyword match in the diff, supporting independently verifiable conformity evidence.
+
+> This prototype does not determine CRA compliance and is not a substitute for legal, regulatory, or accredited conformity assessment.
 
 ### Seed pipeline reproducibility boundary
 
@@ -418,7 +422,7 @@ python analyzer/pipeline.py \
   --output reports/commons-io.json
 ```
 
-### Safe apps: same dep version, different code path (expected: NOT_REACHABLE)
+### Safe apps (non-reachable control variants): same dep version, different code path (expected: NOT_REACHABLE)
 
 ```bash
 python analyzer/pipeline.py \
