@@ -1,6 +1,6 @@
 # Vulnerability Risk Assessor
 
-A prototype framework for assessing whether known vulnerable methods in Java Maven dependencies are reachable from application code. It combines bytecode-level call graph analysis with runtime OpenTelemetry execution traces to produce a graduated evidence chain (L0–L5), CVSS-weighted exposure scores, and CycloneDX VEX output — structured for EU Cyber Resilience Act (CRA) conformity assessment workflows, not just dependency scanning, building on the method-level reachability framing of Shen et al. (ESE 2025).
+A prototype framework for assessing whether known vulnerable methods in Java Maven dependencies are reachable from application code. It combines bytecode-level call graph analysis with runtime OpenTelemetry execution traces to produce a graduated evidence chain (L0–L5), CVSS-weighted exposure scores, and CycloneDX VEX output, structured for EU Cyber Resilience Act (CRA) conformity assessment workflows rather than dependency scanning alone, building on the method-level reachability framing of Shen et al. (ESE 2025).
 
 **What this tool does:**
 - Extracts a bytecode-level call graph from application JARs using a custom ASM-based extractor
@@ -14,7 +14,7 @@ A prototype framework for assessing whether known vulnerable methods in Java Mav
 
 ## Key Result
 
-Across 8 app-CVE evaluation cases covering 4 CVEs and their safe variants, package-level scanners would report all 8 applications as vulnerable (affected dependency version present). This prototype classified 4 of those findings as statically not reachable from the configured application entry points. Under the proposed reachability-adjusted scoring model, aggregate CVSS-weighted exposure was reduced from 60.2 to 23.2 — a 61.5% exposure re-weighting reduction.
+Across 8 app-CVE evaluation cases covering 4 CVEs and their safe variants, package-level scanners would report all 8 applications as vulnerable (affected dependency version present). This prototype classified 4 of those findings as statically not reachable from the configured application entry points. Under the proposed reachability-adjusted scoring model, aggregate CVSS-weighted exposure was reduced from 60.2 to 23.2, a 61.5% exposure re-weighting reduction.
 
 > This metric quantifies how method-level reachability changes vulnerability prioritisation under the scoring model. It is not a claim that real-world attack probability was reduced by 61.5%.
 
@@ -37,7 +37,7 @@ python analyzer/pipeline.py \
   --verbose
 ```
 
-Expected: `L4  affected  risk=10.0  conf=0.90  remedy=URGENT` — 15-hop call path confirmed at runtime.
+Expected: `L4  affected  risk=10.0  conf=0.90  remedy=URGENT` (15-hop call path confirmed at runtime).
 
 ---
 
@@ -69,13 +69,13 @@ docs/
   Software Design Document.pdf   System design, data model, module pseudocode
 ```
 
-> **Implementation note (SDD vs. actual code):** The SDD (Section 4.1.3) lists WALA, Soot, and SootUp as candidate static analysis frameworks. The implementation instead uses a custom ASM-based call graph extractor (`tools/callgraph-extractor/`) with a lightweight Python BFS engine. This choice was made during implementation to avoid JVM tool startup overhead and to allow precise control over edge types (CALL / EXTENDS / IMPLEMENTS) needed for the annotated call path feature. The design intent — bytecode-level CHA + BFS reachability — is unchanged.
+> **Implementation note (SDD vs. actual code):** The SDD (Section 4.1.3) lists WALA, Soot, and SootUp as candidate static analysis frameworks. The implementation instead uses a custom ASM-based call graph extractor (`tools/callgraph-extractor/`) with a lightweight Python BFS engine. This choice was made during implementation to avoid JVM tool startup overhead and to allow precise control over edge types (CALL / EXTENDS / IMPLEMENTS) needed for the annotated call path feature. The design intent, bytecode-level CHA + BFS reachability, is unchanged.
 
 ---
 
 ## Third-Party Validation
 
-To verify that the pipeline generalises beyond its own demo projects, it was applied to [`christophetd/log4shell-vulnerable-app`](https://github.com/christophetd/log4shell-vulnerable-app) — a Spring Boot application widely used in Log4Shell security research, with no shared code or call graph data with the bundled demos.
+To verify that the pipeline generalises beyond its own demo projects, it was applied to [`christophetd/log4shell-vulnerable-app`](https://github.com/christophetd/log4shell-vulnerable-app), a Spring Boot application widely used in Log4Shell security research, with no shared code or call graph data with the bundled demos.
 
 | | |
 |---|---|
@@ -114,15 +114,15 @@ Package-level scanners over-approximate: they report every (app, CVE) pair where
 
 | Metric | Value |
 |--------|-------|
-| Aggregate CVSS-weighted exposure — package-level | 60.2 (all 8 findings at full CVSS) |
-| Aggregate reachability-adjusted exposure — this tool | 23.2 (CVSS × evidence multiplier) |
+| Aggregate CVSS-weighted exposure (package-level) | 60.2 (all 8 findings at full CVSS) |
+| Aggregate reachability-adjusted exposure (this tool) | 23.2 (CVSS × evidence multiplier) |
 | **Exposure re-weighting reduction** | **61.5%** |
 | Statically-unreachable findings | 4 / 8 (50%) |
 | L4 runtime-confirmed findings | 1 / 8 (Log4Shell with OTel trace) |
 
 > "Reachability analysis reduced aggregate CVSS-weighted exposure by **62%** relative to package-level scanning across our 8-application evaluation dataset, by assigning a residual weight of 0.10 to statically-unreachable findings to account for analysis uncertainty (4 of 8 package-scanner alerts were statically unreachable)."
 
-> **Design note:** The evidence multiplier values (1.00 / 0.50 / 0.10) are design parameters, not CVSS-official standards. The 0.10 residual for NOT_REACHABLE findings is intentionally non-zero: it represents two sources of analysis uncertainty — (1) static analysis does not model reflection, `invokedynamic`, or dynamic class loading; (2) a method unreachable today may become reachable after a future refactor. This metric therefore quantifies *reachability-adjusted exposure re-weighting*, not a reduction in real-world attack probability. The specific multiplier values should be calibrated against a labelled exploit dataset in future work.
+> **Design note:** The evidence multiplier values (1.00 / 0.50 / 0.10) are design parameters, not CVSS-official standards. The 0.10 residual for NOT_REACHABLE findings is intentionally non-zero: it represents two sources of analysis uncertainty: (1) static analysis does not model reflection, `invokedynamic`, or dynamic class loading; (2) a method unreachable today may become reachable after a future refactor. This metric therefore quantifies *reachability-adjusted exposure re-weighting*, not a reduction in real-world attack probability. The specific multiplier values should be calibrated against a labelled exploit dataset in future work.
 
 ---
 
@@ -168,9 +168,9 @@ Package-level scanners over-approximate: they report every (app, CVE) pair where
 
 ## Key Design Decisions
 
-**CHA (Class Hierarchy Analysis)** is used during BFS to handle polymorphic dispatch. When a call to `Logger.error()` (an interface method) is encountered, the BFS is expanded to include all known concrete implementations. The CHA closure is computed via BFS over both EXTENDS and IMPLEMENTS edges — interface-extends-interface relationships are stored as IMPLEMENTS edges in ASM bytecode, not as EXTENDS.
+**CHA (Class Hierarchy Analysis)** is used during BFS to handle polymorphic dispatch. When a call to `Logger.error()` (an interface method) is encountered, the BFS is expanded to include all known concrete implementations. The CHA closure is computed via BFS over both EXTENDS and IMPLEMENTS edges. Interface-extends-interface relationships are stored as IMPLEMENTS edges in ASM bytecode, not as EXTENDS.
 
-**Upward method resolution**: When bytecode contains `INVOKEVIRTUAL ZipUnArchiver.extract()`, the call graph extractor records the static receiver type, but `ZipUnArchiver` may not define `extract()` — it may be inherited from `AbstractUnArchiver`. The analyzer walks up the EXTENDS chain when a method has no outgoing edges to find the declaring superclass.
+**Upward method resolution**: When bytecode contains `INVOKEVIRTUAL ZipUnArchiver.extract()`, the call graph extractor records the static receiver type, but `ZipUnArchiver` may not define `extract()`; it may be inherited from `AbstractUnArchiver`. The analyzer walks up the EXTENDS chain when a method has no outgoing edges to find the declaring superclass.
 
 **Entry point filtering**: The `--project-artifact` groupId is used as a Java package prefix to restrict BFS entry points to application-owned classes only. Without this, library tool classes (e.g. `log4j-core`'s own `Version.main`) would be treated as entry points and inflate reachability results.
 
@@ -188,17 +188,17 @@ This tool is designed to produce evidence suitable for EU Cyber Resilience Act (
 
 - **`analysis_fingerprint`** makes each report reproducible: given the same callgraph file and seed, the result is verifiable.
 - **`--output-vex`** produces a CycloneDX 1.5 VEX document. VEX is a machine-readable format for communicating per-CVE exploitability status and can support vulnerability management and conformity-assessment workflows.
-- **`AuditRecord`** (populated at L5) captures reviewer identity, timestamp, justification, and waiver expiry — the chain-of-custody elements a conformity assessor will look for.
+- **`AuditRecord`** (populated at L5) captures reviewer identity, timestamp, justification, and waiver expiry: the chain-of-custody elements a conformity assessor will look for.
 - **`generated_at`** on a report containing an L4 AFFECTED finding can support time-sensitive vulnerability management and regulatory reporting workflows.
-- **`evidence_terms`** in seed candidate output are drawn from a predefined, CWE-keyed vocabulary — not a machine-learning model. Every term is traceable to a specific keyword match in the diff, supporting independently verifiable conformity evidence.
+- **`evidence_terms`** in seed candidate output are drawn from a predefined, CWE-keyed vocabulary, not a machine-learning model. Every term is traceable to a specific keyword match in the diff, supporting independently verifiable conformity evidence.
 
 ### Seed pipeline reproducibility boundary
 
 The analysis pipeline (`pipeline.py` → `static_analyzer.py` → `fusion.py`) is **fully local and reproducible**: given the same `data/seeds/*.yaml`, call graph cache, and trace log, the output is deterministic and verifiable without any network calls.
 
-`seed_ingestor.py` (and `light_cvemapping.py`) operate **upstream** of this boundary — they are offline preparation tools for creating new seeds, not part of the runtime analysis. Their outputs (`candidate_methods`) require human validation before promotion to `vulnerable_methods` in a trusted seed file. This validation step is enforced by convention:
+`seed_ingestor.py` (and `light_cvemapping.py`) operate **upstream** of this boundary: they are offline preparation tools for creating new seeds, not part of the runtime analysis. Their outputs (`candidate_methods`) require human validation before promotion to `vulnerable_methods` in a trusted seed file. This validation step is enforced by convention:
 
-- `candidate_methods` ≠ `vulnerable_methods` — the pipeline only reads `vulnerable_methods`
+- `candidate_methods` ≠ `vulnerable_methods`: the pipeline only reads `vulnerable_methods`
 - `requires_manual_validation: true` is an explicit machine-readable assertion in every candidate output
 - `status: NEEDS_VALIDATION` must be manually changed to `VALIDATED` by a security engineer
 
@@ -212,15 +212,15 @@ Existing tools for open-source dependency vulnerability management fall into two
 
 | Tool | Analysis level | Reachability | Runtime trace | VEX output | Audit chain | CRA-oriented evidence |
 |------|---------------|-------------|--------------|------------|-------------|----------------------|
-| OWASP Dependency-Check [1] | Package (JAR) | None | — | — | — | — |
-| GitHub Dependabot [2] | Package | None | — | — | — | — |
-| Google OSV-Scanner [3] | Package | None | — | — | — | — |
-| Snyk (paid tier) [4] | Package + partial method | Static (limited, Java) | — | — | — | — |
-| Joern [5] | Method (CPG) | Custom QL queries | — | — | — | — |
-| CodeQL [6] | Method (data flow) | Taint tracking | — | SARIF | — | — |
+| OWASP Dependency-Check [1] | Package (JAR) | None | n/a | n/a | n/a | n/a |
+| GitHub Dependabot [2] | Package | None | n/a | n/a | n/a | n/a |
+| Google OSV-Scanner [3] | Package | None | n/a | n/a | n/a | n/a |
+| Snyk (paid tier) [4] | Package + partial method | Static (limited, Java) | n/a | n/a | n/a | n/a |
+| Joern [5] | Method (CPG) | Custom QL queries | n/a | n/a | n/a | n/a |
+| CodeQL [6] | Method (data flow) | Taint tracking | n/a | SARIF | n/a | n/a |
 | **This work** | **Method (bytecode BFS+CHA)** | **Static + Runtime (OTel)** | **✓** | **CycloneDX 1.5 VEX** | **✓ (L5)** | **✓** |
 
-**Package-level scanners** (Dependency-Check, Dependabot, OSV-Scanner) flag every dependency version that appears in a vulnerability database, regardless of whether the vulnerable code path is reachable from the application. Our 8-case evaluation matrix shows that 4 of 8 such alerts are statically unreachable — a 50% over-approximation rate on this dataset.
+**Package-level scanners** (Dependency-Check, Dependabot, OSV-Scanner) flag every dependency version that appears in a vulnerability database, regardless of whether the vulnerable code path is reachable from the application. Our 8-case evaluation matrix shows that 4 of 8 such alerts are statically unreachable, a 50% over-approximation rate on this dataset.
 
 **Snyk** provides reachability analysis for some ecosystems and vulnerability patterns (paid tier). Its implementation details, evidence model, and audit trail are platform-specific and not directly reproducible in this prototype's sense; it produces neither VEX output nor an audit chain structured for CRA conformity assessment.
 
@@ -249,9 +249,9 @@ This work differs along four axes: (1) it combines static BFS reachability with 
 ## Limitations
 
 - Only Java bytecode is analyzed (no Kotlin, Scala, Groovy).
-- Reflection, `invokedynamic`, and runtime class loading are not modeled — a NOT_REACHABLE result should be interpreted as a not-affected candidate under the current analysis boundary, not as proof of absence of risk.
+- Reflection, `invokedynamic`, and runtime class loading are not modeled. A NOT_REACHABLE result should be interpreted as a not-affected candidate under the current analysis boundary, not as proof of absence of risk.
 - Runtime evidence only covers execution paths in the attached test suite.
-- CHA over-approximates polymorphic dispatch — it expands virtual calls to all known subtypes, which may include implementations never instantiated at runtime. The analysis should not be interpreted as a whole-program soundness guarantee: reflection, `invokedynamic`, and dynamic class loading can create call paths invisible to the current static model.
+- CHA over-approximates polymorphic dispatch: it expands virtual calls to all known subtypes, which may include implementations never instantiated at runtime. The analysis should not be interpreted as a whole-program soundness guarantee: reflection, `invokedynamic`, and dynamic class loading can create call paths invisible to the current static model.
 - Light CVE mapping is a best-effort heuristic; all seeds should be reviewed by a security engineer before use in production.
 - Single-project analysis only. Ecosystem-scale analysis (Maven Central-wide) would require a persistent graph database backend; the BFS logic is designed to be storage-agnostic.
 
@@ -270,13 +270,13 @@ This work differs along four axes: (1) it combines static BFS reachability with 
 
 ## Quick Start
 
-### Step 1 — Install Python dependency
+### Step 1: Install Python dependency
 
 ```bash
 pip install pyyaml
 ```
 
-### Step 2 — Build the call graph extractor
+### Step 2: Build the call graph extractor
 
 ```bash
 cd tools/callgraph-extractor
@@ -284,7 +284,7 @@ mvn package -q
 # Produces: target/callgraph-extractor-1.0.jar
 ```
 
-### Step 3 — Build a demo project
+### Step 3: Build a demo project
 
 ```bash
 cd demo-projects/vulnerable-log4j-demo
@@ -292,7 +292,7 @@ mvn package -q
 mvn dependency:copy-dependencies -DoutputDirectory=target/dependency -q
 ```
 
-### Step 4 — Run the risk assessment pipeline
+### Step 4: Run the risk assessment pipeline
 
 The pre-computed call graphs in `data/` let you skip the extraction step. Use `--callgraph-cache` to reuse them.
 
@@ -314,15 +314,15 @@ python analyzer/pipeline.py \
 | Flag | Required | Description |
 |---|---|---|
 | `--project-jars` | yes | Directory or JAR files to analyze |
-| `--project-artifact` | recommended | Maven `groupId:artifactId` — filters entry points to your code only |
+| `--project-artifact` | recommended | Maven `groupId:artifactId` (filters entry points to your code only) |
 | `--callgraph-cache` | no | Reuse a previously extracted call graph (skips Java extraction) |
-| `--trace-log` | no | OTel span log from `collect_traces.py` — enables L4 evidence |
+| `--trace-log` | no | OTel span log from `collect_traces.py` (enables L4 evidence) |
 | `--output` | no | Path for JSON report (default: `reports/<artifact>.json`) |
 | `--output-vex` | no | Path for CycloneDX 1.5 VEX document (CRA conformity output) |
 | `--cve` | no | Restrict analysis to specific CVE IDs |
 | `--extra-entry-points` | no | Additional BFS entry points (e.g. servlet handlers) |
 
-### Step 5 — Collect runtime traces (Log4Shell only)
+### Step 5: Collect runtime traces (Log4Shell only)
 
 ```bash
 python scripts/collect_traces.py
@@ -331,10 +331,10 @@ python scripts/collect_traces.py
 
 Then re-run the pipeline with `--trace-log data/traces/run1.log` to upgrade to L4.
 
-### Step 6 — Semi-automated seed extraction from a fix commit
+### Step 6: Semi-automated seed extraction from a fix commit
 
 `light_cvemapping.py` is a **candidate generator**, not an automatic seed generator.
-Output goes into `candidate_methods:` — a separate block from `vulnerable_methods:`.
+Output goes into `candidate_methods:`, a separate block from `vulnerable_methods:`.
 Only after manual validation (descriptor completion, evidence review) should a candidate
 be promoted to a trusted seed YAML.
 
@@ -356,17 +356,17 @@ python analyzer/light_cvemapping.py \
 | `--commit` | GitHub fix commit URL (required) |
 | `--cve` | CVE ID to embed in output YAML |
 | `--group-id` / `--artifact-id` | Maven coordinates of the vulnerable library |
-| `--advisory` | Advisory IDs or URLs (GHSA-xxx, https://...) — space-separated |
+| `--advisory` | Advisory IDs or URLs (GHSA-xxx, https://...), space-separated |
 | `--package` | Java package prefix to filter candidates (reduces noise for large commits) |
 | `--output` | Write YAML to file; if omitted, prints to stdout |
 
 **Output structure:**
 
 ```yaml
-candidate_methods:          # NOT vulnerable_methods — requires manual promotion
+candidate_methods:          # NOT vulnerable_methods, requires manual promotion
   - fqcn: org.apache.logging.log4j.core.lookup.JndiLookup
     method: lookup
-    descriptor: null        # always null — requires manual JVM type resolution
+    descriptor: null        # always null, requires manual JVM type resolution
     descriptor_hint: "(?Ljava/lang/String;)Ljava/lang/String;"  # best-effort; ? = unknown type
     patch_semantic: method_deleted
     evidence_terms: [jndi, lookup]
@@ -380,7 +380,7 @@ candidate_methods:          # NOT vulnerable_methods — requires manual promoti
 
 ### Vulnerable apps (expected: REACHABLE)
 
-**Log4Shell** (L4 — runtime observed):
+**Log4Shell** (L4, runtime observed):
 ```bash
 python analyzer/pipeline.py \
   --project-jars demo-projects/vulnerable-log4j-demo/target \
@@ -391,7 +391,7 @@ python analyzer/pipeline.py \
   --output-vex reports/log4j.vex.json
 ```
 
-**Text4Shell** (L3 — static reachable, no trace):
+**Text4Shell** (L3, static reachable, no trace):
 ```bash
 python analyzer/pipeline.py \
   --project-jars demo-projects/vulnerable-text4shell-demo/target \
@@ -400,7 +400,7 @@ python analyzer/pipeline.py \
   --output reports/text4shell-vuln.json --cve CVE-2022-42889
 ```
 
-**Zip-Slip** (L3 — static reachable, no trace):
+**Zip-Slip** (L3, static reachable, no trace):
 ```bash
 python analyzer/pipeline.py \
   --project-jars demo-projects/plexus-demo/target \
@@ -409,7 +409,7 @@ python analyzer/pipeline.py \
   --output reports/plexus.json
 ```
 
-**commons-io** (L3 — static reachable, no trace):
+**commons-io** (L3, static reachable, no trace):
 ```bash
 python analyzer/pipeline.py \
   --project-jars demo-projects/commons-io-demo/target \
@@ -418,7 +418,7 @@ python analyzer/pipeline.py \
   --output reports/commons-io.json
 ```
 
-### Safe apps — same dep version, different code path (expected: NOT_REACHABLE)
+### Safe apps: same dep version, different code path (expected: NOT_REACHABLE)
 
 ```bash
 python analyzer/pipeline.py \
@@ -446,7 +446,7 @@ python analyzer/pipeline.py \
   --output reports/plexus-safe.json --cve CVE-2018-1002200
 ```
 
-### Reflection false negative demo (expected: NOT_REACHABLE — known analysis limitation)
+### Reflection false negative demo (expected: NOT_REACHABLE, known analysis limitation)
 
 ```bash
 python analyzer/pipeline.py \
@@ -480,15 +480,15 @@ python scripts/risk_reduction.py
 
 ## Applying the Pipeline to an External Project
 
-The pipeline is not limited to the bundled demo projects. Any Java application can be analysed by providing its compiled JARs directly. This section documents how to apply it to an external codebase and records the common obstacles encountered when doing so, using `christophetd/log4shell-vulnerable-app` — a Spring Boot application widely cited in Log4Shell security research — as a worked example.
+The pipeline is not limited to the bundled demo projects. Any Java application can be analysed by providing its compiled JARs directly. This section documents how to apply it to an external codebase and records the common obstacles encountered when doing so, using `christophetd/log4shell-vulnerable-app`, a Spring Boot application widely cited in Log4Shell security research, as a worked example.
 
 ### Project Selection Criteria
 
 Three criteria were applied when selecting an external project for validation:
 
-1. **Seed compatibility** — the project must depend on a library version already covered by an existing seed in `data/seeds/`, so no new seed authoring is required.
-2. **Active exploit path** — the application must pass user-controlled input into the vulnerable method, creating a statically traceable and runtime-triggerable call path, not merely a transitive dependency with no reachable call site.
-3. **Independence** — no shared code or call graph data with the bundled demo projects; the result must come from a fully independent extraction.
+1. **Seed compatibility**: the project must depend on a library version already covered by an existing seed in `data/seeds/`, so no new seed authoring is required.
+2. **Active exploit path**: the application must pass user-controlled input into the vulnerable method, creating a statically traceable and runtime-triggerable call path, not merely a transitive dependency with no reachable call site.
+3. **Independence**: no shared code or call graph data with the bundled demo projects; the result must come from a fully independent extraction.
 
 `christophetd/log4shell-vulnerable-app` satisfies all three: it depends on `log4j-core:2.14.1` (matched by `data/seeds/CVE-2021-44228.yaml`), its `MainController` passes the `X-Api-Version` HTTP header directly to `logger.info()`, and it shares no code with any bundled demo project.
 
@@ -527,8 +527,8 @@ jar cf app-classes.jar -C BOOT-INF/classes .
 ```
 
 This produces:
-- `build/libs/app-classes.jar` — application classes only
-- `build/libs/BOOT-INF/lib/*.jar` — all dependency JARs (including the vulnerable library)
+- `build/libs/app-classes.jar`: application classes only
+- `build/libs/BOOT-INF/lib/*.jar`: all dependency JARs (including the vulnerable library)
 
 Pass both to the pipeline:
 
@@ -554,11 +554,11 @@ Invoke-WebRequest -Uri http://localhost:8080/ `
     -UseBasicParsing
 ```
 
-The JNDI payload causes log4j to call `JndiLookup.lookup()`. No LDAP server is required — the connection fails safely, but the OTel agent captures the span. Stop the app with Ctrl+C, then re-run the pipeline with `--trace-log data/traces/christophetd.log`.
+The JNDI payload causes log4j to call `JndiLookup.lookup()`. No LDAP server is required; the connection fails safely, but the OTel agent captures the span. Stop the app with Ctrl+C, then re-run the pipeline with `--trace-log data/traces/christophetd.log`.
 
 ### Worked Example: christophetd/log4shell-vulnerable-app
 
-**Step 1 — Clone and fix Gradle/Java compatibility**
+**Step 1: Clone and fix Gradle/Java compatibility**
 
 ```powershell
 git clone https://github.com/christophetd/log4shell-vulnerable-app `
@@ -581,7 +581,7 @@ Spring Boot 2.7.x manages log4j at a patched version. Pin the vulnerable version
 ext['log4j2.version'] = '2.14.1'
 ```
 
-**Step 2 — Build and extract JARs**
+**Step 2: Build and extract JARs**
 
 ```powershell
 cd demo-projects/log4shell-vulnerable-app
@@ -592,7 +592,7 @@ jar cf app-classes.jar -C BOOT-INF/classes .
 cd C:\project\vuln_risk_assessor
 ```
 
-**Step 3 — Assign JAR paths (required at the start of each new PowerShell session)**
+**Step 3: Assign JAR paths (required at the start of each new PowerShell session)**
 
 ```powershell
 $appJar = "demo-projects/log4shell-vulnerable-app/build/libs/app-classes.jar"
@@ -600,7 +600,7 @@ $depJars = (Get-ChildItem demo-projects/log4shell-vulnerable-app/build/libs/BOOT
     ForEach-Object { $_.FullName })
 ```
 
-**Step 4 — Static-only run (produces L3)**
+**Step 4: Static-only run (produces L3)**
 
 ```powershell
 python analyzer/pipeline.py `
@@ -612,9 +612,9 @@ python analyzer/pipeline.py `
     --verbose
 ```
 
-Expected: `L3  under_investigation  risk=5.0  conf=0.60` — static reachability confirmed, no runtime evidence yet.
+Expected: `L3  under_investigation  risk=5.0  conf=0.60` (static reachability confirmed, no runtime evidence yet).
 
-**Step 5 — Collect OTel trace and re-run (upgrades to L4)**
+**Step 5: Collect OTel trace and re-run (upgrades to L4)**
 
 In a new terminal, start the app:
 ```powershell
