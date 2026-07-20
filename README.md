@@ -212,12 +212,12 @@ Existing tools for open-source dependency vulnerability management fall into two
 
 | Tool | Analysis level | Reachability | Runtime trace | VEX output | Audit chain | CRA-oriented evidence |
 |------|---------------|-------------|--------------|------------|-------------|----------------------|
-| OWASP Dependency-Check [1] | Package (JAR) | None | n/a | n/a | n/a | n/a |
-| GitHub Dependabot [2] | Package | None | n/a | n/a | n/a | n/a |
-| Google OSV-Scanner [3] | Package | None | n/a | n/a | n/a | n/a |
-| Snyk (paid tier) [4] | Package + partial method | Static (limited, Java) | n/a | n/a | n/a | n/a |
-| Joern [5] | Method (CPG) | Custom QL queries | n/a | n/a | n/a | n/a |
-| CodeQL [6] | Method (data flow) | Taint tracking | n/a | SARIF | n/a | n/a |
+| OWASP Dependency-Check [1] | Package (JAR) | None | – | – | – | – |
+| GitHub Dependabot [2] | Package | None | – | – | – | – |
+| Google OSV-Scanner [3] | Package | None | – | – | – | – |
+| Snyk (paid tier) [4] | Package + partial method | Static (limited, Java) | – | – | – | – |
+| Joern [5] | Method (CPG) | Custom QL queries | – | – | – | – |
+| CodeQL [6] | Method (data flow) | Taint tracking | – | SARIF | – | – |
 | **This work** | **Method (bytecode BFS+CHA)** | **Static + Runtime (OTel)** | **✓** | **CycloneDX 1.5 VEX** | **✓ (L5)** | **✓** |
 
 **Package-level scanners** (Dependency-Check, Dependabot, OSV-Scanner) flag every dependency version that appears in a vulnerability database, regardless of whether the vulnerable code path is reachable from the application. Our 8-case evaluation matrix shows that 4 of 8 such alerts are statically unreachable, a 50% over-approximation rate on this dataset.
