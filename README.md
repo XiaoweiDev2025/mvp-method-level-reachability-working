@@ -258,6 +258,8 @@ This work differs along four axes: (1) it combines static BFS reachability with 
 - CHA over-approximates polymorphic dispatch: it expands virtual calls to all known subtypes, which may include implementations never instantiated at runtime. The analysis should not be interpreted as a whole-program soundness guarantee: reflection, `invokedynamic`, and dynamic class loading can create call paths invisible to the current static model.
 - Light CVE mapping is a best-effort heuristic; all seeds should be reviewed by a security engineer before use in production.
 - Single-project analysis only. Ecosystem-scale analysis (Maven Central-wide) would require a persistent graph database backend; the BFS logic is designed to be storage-agnostic.
+- Seed matching is exact on fully-qualified class name, method name, and JVM descriptor, with a narrow fallback for simple Maven package relocation (e.g. `maven-shade-plugin` relocations, which rewrite only the package prefix): if the FQCN does not match but the simple class name, method name, and descriptor do, the match is reported as `REACHABLE` at reduced confidence (0.6) and flagged as `relocated_package_suspected` in `uncertain_features`. Genuine class renaming or obfuscation is not detected; that would require bytecode-level clone detection, which is out of scope.
+- CVEs whose fix is a configuration change rather than a code change (no vulnerable method exists to seed) are recognized but not yet scored: a seed YAML can declare `fix_type: configuration_only`, which `load_seed()` reports as an explicit out-of-scope case rather than a malformed file, but the pipeline does not yet produce a package-level evidence path for these.
 
 ---
 

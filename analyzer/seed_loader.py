@@ -64,6 +64,17 @@ class Seed:
         return self.vulnerable_methods[0]
 
 
+class OutOfScopeSeedError(ValueError):
+    """
+    Raised for a CVE that is recognized but has no code-level vulnerable method to seed,
+    e.g. a fix that changes only a default configuration value, not any method's logic
+    (see Ponta et al. 2018, Sec. V-B-5). This is distinct from a malformed seed file: the
+    YAML is well-formed and the CVE is real, but method-level reachability analysis does
+    not apply to it. Callers that want to report this differently from a genuinely broken
+    seed file (missing/invalid required fields) can catch this subclass specifically.
+    """
+
+
 def load_seed(path: Path) -> Seed:
     """Load and validate a single seed YAML file."""
     with open(path, encoding="utf-8") as f:
@@ -102,6 +113,13 @@ def load_seed(path: Path) -> Seed:
         ))
 
     if not methods:
+        if raw.get("fix_type") == "configuration_only":
+            raise OutOfScopeSeedError(
+                f"Seed {path} declares fix_type=configuration_only (fix is a default-"
+                f"configuration change, not a code change), so no vulnerable method exists "
+                f"to seed. Method-level reachability analysis does not apply to this CVE; "
+                f"this is a recognized scope boundary, not a malformed seed file."
+            )
         raise ValueError(f"Seed {path} has no vulnerable_methods defined.")
 
     return Seed(
@@ -133,6 +151,12 @@ def load_all_seeds_with_errors(seeds_dir: Path) -> tuple[dict[str, Seed], list[t
     for yaml_file in sorted(seeds_dir.glob("*.yaml")):
         try:
             seed = load_seed(yaml_file)
+        except OutOfScopeSeedError as exc:
+            # Well-formed YAML, real CVE, but no code-level method to seed (e.g. a
+            # configuration-only fix); distinct from a genuinely broken seed file.
+            warn("seed-loader", f"Skipping out-of-scope seed {yaml_file}: {exc}")
+            errors.append((yaml_file, str(exc)))
+            continue
         except Exception as exc:
             warn("seed-loader", f"Skipping malformed seed {yaml_file}: {exc}")
             errors.append((yaml_file, str(exc)))
