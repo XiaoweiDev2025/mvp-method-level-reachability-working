@@ -72,6 +72,13 @@ class OutOfScopeSeedError(ValueError):
     YAML is well-formed and the CVE is real, but method-level reachability analysis does
     not apply to it. Callers that want to report this differently from a genuinely broken
     seed file (missing/invalid required fields) can catch this subclass specifically.
+
+    Only use fix_type: configuration_only when no method mediates the vulnerable behaviour
+    at all. If a method exists that is actually part of the attack path (e.g. an
+    already-present method whose access was gated by the changed config, such as an
+    unauthenticated admin endpoint), identify that method as the seed instead, even though
+    the fix commit itself never touches it -- reachability analysis is still meaningful
+    there. Diff-only seed discovery would miss this case, but manual review should not.
     """
 
 
