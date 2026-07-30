@@ -286,4 +286,10 @@ def _build_notes(
             "runtime -- static analysis may have missed a path (reflection/dynamic "
             "dispatch suspected)"
         )
+    if not parts:
+        # static and runtime are both None -- decision defaulted to
+        # UNDER_INVESTIGATION with no evidence to describe. Say so explicitly
+        # rather than leaving notes empty, which would look like a silent
+        # decision with no basis.
+        parts.append("No static or runtime evidence provided")
     return " | ".join(parts)

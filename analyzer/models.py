@@ -37,8 +37,22 @@ class RuntimeReachability(str, Enum):
 
 class EvidenceLevel(int, Enum):
     """
-    L0–L5 evidence ladder. Higher = stronger evidence of exploitability.
-    Each level is a necessary (but not sufficient) condition for the next.
+    L0–L5 evidence ladder. Each level is a necessary (but not sufficient)
+    condition for the next: reaching a given level presupposes every
+    earlier level was legitimately established first, not merely that
+    comparable evidence happens to exist.
+
+    In the common case, higher levels do correspond to stronger evidence
+    of exploitability, but this is not a strict guarantee. A finding can
+    only be assigned a level consistent with the order in which its
+    evidence was actually established, so a NOT_REACHABLE finding stays
+    at L2 even when directly contradicted by a positive runtime
+    observation (see fusion.py's NOT_REACHABLE+OBSERVED branch) -- runtime
+    evidence without a preceding static path cannot be certified as having
+    passed through L3. evidence_level therefore records which stage of the
+    required sequence produced a finding, not by itself how much concern
+    it warrants; that judgment is carried by the decision, confidence, and
+    risk_score fields, not by this enum alone.
     """
     L0_CVE_EXISTS       = 0  # CVE alert exists for a dependency version
     L1_COMPONENT_PRESENT = 1  # Vulnerable package is in the dependency tree

@@ -138,6 +138,8 @@ Package-level scanners over-approximate: they report every (app, CVE) pair where
 | L5 | AUDITED | A human security engineer has reviewed and confirmed the finding |
 
 > **L2 in NOT_REACHABLE findings**: when a finding carries `evidence_level: 2`, it means the seed method was successfully identified (SEED_IDENTIFIED) but no call path from the application entry points to that method was found in the static call graph. The decision `not_affected_candidate` is therefore a statement about the *absence of a static path*, not a confirmed absence of risk.
+>
+> **`evidence_level` is not a pure "how worried should I be" scale.** It records how far a finding progressed through the required L0-L5 sequence, not the finding's overall risk. Two `evidence_level: 2` findings can carry very different risk: an ordinary NOT_REACHABLE finding (`not_affected_candidate`, risk multiplier 0.10) versus the static/runtime conflict case below (`under_investigation`, risk multiplier 0.50) -- both stay at L2 because runtime evidence without a preceding static path can't be certified as having passed through L3, but they represent very different levels of concern. Read `decision`, `decision_confidence`, and `risk_score` for that, not `evidence_level` alone.
 
 ### CVE Coverage
 
