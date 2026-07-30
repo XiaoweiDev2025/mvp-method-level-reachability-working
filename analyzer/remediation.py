@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from models import Decision, EvidenceChain
+from models import Decision, EvidenceChain, RuntimeReachability, StaticReachability
 from seed_loader import Seed
 
 _PRIORITY_MAP = {
@@ -31,6 +31,29 @@ _PRIORITY_NOTES = {
     "RECOMMENDED": "Vulnerable method is statically reachable. Increase test coverage or upgrade proactively.",
     "MONITOR":     "No confirmed reachability. Increase test coverage to determine actual exposure, or upgrade when convenient.",
 }
+
+_CONFLICT_NOTE = (
+    "Static analysis found no path, but the seed method was observed executing at "
+    "runtime -- the static model likely has a blind spot (reflection/dynamic dispatch "
+    "suspected). Treat as a confirmed-execution signal, not an absence of risk."
+)
+
+
+def _is_static_runtime_conflict(chain: EvidenceChain) -> bool:
+    """
+    True when static analysis found no path but runtime observed the seed method
+    executing anyway -- the same conflict fusion._decide() flags as UNDER_INVESTIGATION
+    rather than silently scoring as NOT_AFFECTED_CANDIDATE. This case carries direct,
+    confirmed-execution evidence, unlike the other two paths into UNDER_INVESTIGATION
+    (static REACHABLE + runtime NOT_RUN, or static UNKNOWN), which have no positive
+    evidence at all. It should not share MONITOR's "we haven't checked yet" framing.
+    """
+    return (
+        chain.static_evidence is not None
+        and chain.runtime_evidence is not None
+        and chain.static_evidence.status == StaticReachability.NOT_REACHABLE
+        and chain.runtime_evidence.status == RuntimeReachability.OBSERVED
+    )
 
 
 @dataclass
@@ -58,6 +81,9 @@ def build_remediation(
     """
     decision = chain.decision
     priority = _PRIORITY_MAP.get(decision, "MONITOR") if decision else "MONITOR"
+    conflict = _is_static_runtime_conflict(chain)
+    if conflict:
+        priority = "RECOMMENDED"
 
     call_path: list[str] = []
     if chain.static_evidence:
@@ -72,9 +98,12 @@ def build_remediation(
         "to_version": seed.package.fixed_version,
     }]
 
-    base_note = _PRIORITY_NOTES.get(priority, "")
-    if priority == "MONITOR" and decision == Decision.UNDER_INVESTIGATION:
-        base_note = _PRIORITY_NOTES["MONITOR"]
+    if conflict:
+        base_note = _CONFLICT_NOTE
+    else:
+        base_note = _PRIORITY_NOTES.get(priority, "")
+        if priority == "MONITOR" and decision == Decision.UNDER_INVESTIGATION:
+            base_note = _PRIORITY_NOTES["MONITOR"]
 
     if seed.package.remediation_note:
         base_note = f"{base_note} {seed.package.remediation_note}".strip()

@@ -1,0 +1,5 @@
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[otel.javaagent 2026-07-30 20:31:38:607 +0100] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.32.0
+[otel.javaagent 2026-07-30 20:31:42:527 +0100] [main] INFO io.opentelemetry.exporter.logging.LoggingSpanExporter - 'JndiLookup.lookup' : 9d48f58cfdf37ea0f35bdbc290b2e386 7ffd00595d20302b INTERNAL [tracer: io.opentelemetry.methods:1.32.0-alpha] AttributesMap{data={thread.name=main, code.namespace=org.apache.logging.log4j.core.lookup.JndiLookup, code.function=lookup, thread.id=1}, capacity=128, totalAddedValues=4}
+20:31:42.414 [main] ERROR com.example.App - ${jndi:ldap://127.0.0.1/x}
+Logged (via reflection): ${jndi:ldap://127.0.0.1/x}

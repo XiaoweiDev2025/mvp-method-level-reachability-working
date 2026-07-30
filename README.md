@@ -157,14 +157,15 @@ Package-level scanners over-approximate: they report every (app, CVE) pair where
 | REACHABLE | OBSERVED | affected | L4 |
 | REACHABLE | NOT_OBSERVED | likely_affected | L3 |
 | REACHABLE | NOT_RUN | under_investigation | L3 |
-| NOT_REACHABLE | any | not_affected_candidate | L2 |
+| NOT_REACHABLE | OBSERVED | under_investigation *(static/runtime conflict — see below)* | L2 |
+| NOT_REACHABLE | NOT_OBSERVED / NOT_RUN / absent | not_affected_candidate | L2 |
 | UNKNOWN | any | under_investigation | L1 |
 
 > `REACHABLE` / `NOT_REACHABLE` are the result of the static call-graph model under the current analysis scope (see [Limitations](#limitations)), not a general claim about the deployed application's real-world exposure.
 
-**Risk score** = CVSS base score × evidence multiplier (L4=1.0, L3 likely=0.75, L3 under=0.50, L2=0.10)
+**Risk score** = CVSS base score × evidence multiplier (L4 affected=1.0, L3 likely=0.75, L3/L2 under_investigation=0.50, L2 not_affected_candidate=0.10). The multiplier is keyed on (decision, evidence level) together, not on evidence level alone — both `under_investigation` and `not_affected_candidate` can appear at L2 with different multipliers, since they represent different evidence, not different levels.
 
-**Remediation priority** = URGENT (affected) / RECOMMENDED (likely_affected) / MONITOR (others)
+**Remediation priority** = URGENT (affected) / RECOMMENDED (likely_affected, and the NOT_REACHABLE+OBSERVED conflict case above) / MONITOR (others)
 
 ---
 
@@ -179,6 +180,8 @@ Package-level scanners over-approximate: they report every (app, CVE) pair where
 **Annotated call path**: Each hop in the call path is tagged with its edge type (`CALL`, `CHA_EXPANSION[X->Y]`, `INHERITED`, `ENTRY_POINT`), making it auditable which steps relied on conservative CHA assumptions versus direct bytecode edges.
 
 **NOT_OBSERVED != NOT_REACHABLE**: Runtime evidence only covers the execution paths taken in the test suite. `NOT_OBSERVED` means the method was not seen in the observed runs, not that it is unreachable. The OTel agent's `VersionLogger` startup line is used to distinguish `NOT_OBSERVED` (agent ran, method not called) from `NOT_RUN` (agent was not attached at all).
+
+**Static/runtime conflict detection**: if static analysis reports NOT_REACHABLE but runtime evidence shows the seed method OBSERVED executing anyway, `fusion.py` does not let the static result silently win. This combination is flagged as `under_investigation` (not `not_affected_candidate`) with an explicit `CONFLICT:` note, and `remediation.py` raises its priority to `RECOMMENDED` rather than the default `MONITOR` — since direct execution evidence is stronger than an ordinary "haven't tested yet" finding. In practice this is the signature of a static-model blind spot (reflection, dynamic proxy, or other dispatch invisible to CHA+BFS); see the [reflection false negative demo](#reflection-false-negative-demo-expected-not_reachable-known-analysis-limitation) below for a worked example.
 
 **Light CVE mapping** parses git diff hunk headers (`@@ -a,b +c,d @@ function_context`) to identify which method was modified in the fix commit. This is more reliable than scanning for `+` lines alone because the hunk header names the enclosing function even when the fix is purely additive (no removed lines).
 
@@ -475,6 +478,39 @@ a residual weight of 0.10 rather than zero:
   "future_code_change_not_modelled"
 ]
 ```
+
+**With a captured runtime trace, this blind spot is caught rather than silently absorbed.**
+Attaching the OTel agent to this same demo and sending the JNDI payload through the reflective
+call path (`Class.forName` + `Method.invoke`) produces a span for `JndiLookup.lookup()` even
+though no static path was found:
+
+```bash
+java -javaagent:tools/otel/opentelemetry-javaagent-1.32.0.jar \
+  -Dotel.service.name=vuln-demo-reflection \
+  -Dotel.traces.exporter=logging -Dotel.metrics.exporter=none -Dotel.logs.exporter=none \
+  -Dotel.instrumentation.methods.include=org.apache.logging.log4j.core.lookup.JndiLookup[lookup] \
+  -cp "demo-projects/reflection-log4j-demo/target/reflection-log4j-demo-1.0-SNAPSHOT.jar;demo-projects/reflection-log4j-demo/target/dependency/*" \
+  com.example.App '${jndi:ldap://127.0.0.1/x}' \
+  > data/traces/reflection-run1.log 2>&1
+
+python analyzer/pipeline.py \
+  --project-jars demo-projects/reflection-log4j-demo/target \
+  --project-artifact com.example:reflection-log4j-demo \
+  --callgraph-cache data/callgraph-reflection-log4j.txt \
+  --trace-log data/traces/reflection-run1.log \
+  --output reports/reflection-log4j.json --cve CVE-2021-44228
+```
+
+Expected: `L2  under_investigation  risk=5.0  conf=0.66  remedy=RECOMMENDED`, with the report's
+`notes` field carrying an explicit conflict message: *"CONFLICT: static analysis found no path but
+the seed method executed at runtime -- static analysis may have missed a path (reflection/dynamic
+dispatch suspected)."* The fusion engine (`fusion.py::_decide`) treats a static/runtime
+disagreement as a signal requiring review rather than letting the NOT_REACHABLE static result
+silently override direct execution evidence, and `remediation.py` raises this case's priority
+above the default MONITOR given to an ordinary "haven't tested yet" UNDER_INVESTIGATION finding.
+This case is reported separately from the 8-case evaluation matrix above: it demonstrates evidence
+fusion catching a single-source blind spot, a different property from that matrix's
+vulnerable/safe discrimination test.
 
 ### Reachability-adjusted exposure metric
 

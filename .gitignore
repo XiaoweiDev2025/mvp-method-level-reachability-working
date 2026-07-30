@@ -35,5 +35,6 @@ callgraph.tmp.txt
 
 # Personal thesis/literature notes (not for the repo)
 docs/literature-notes.md
+docs/code-literature-crossref.md
 docs/references/
 docs/thesis/

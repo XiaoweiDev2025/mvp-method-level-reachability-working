@@ -140,7 +140,20 @@ def test_all_decide_branches():
         expected_risk=10.0,
     )
 
-    print("  PASS: all 7 static/runtime combinations produced the expected level/decision/confidence/risk")
+    # 7. Static NOT_REACHABLE, runtime OBSERVED (conflict: static missed a path,
+    # e.g. reflection/dynamic dispatch) — must NOT silently collapse to
+    # NOT_AFFECTED_CANDIDATE just because static said no path exists.
+    _check(
+        "static NOT_REACHABLE, runtime OBSERVED (conflict)",
+        static=StaticEvidence(status=StaticReachability.NOT_REACHABLE, confidence=0.7),
+        runtime=RuntimeEvidence(status=RuntimeReachability.OBSERVED, confidence=0.95),
+        expected_level=EvidenceLevel.L2_SEED_IDENTIFIED,
+        expected_decision=Decision.UNDER_INVESTIGATION,
+        expected_confidence=0.95 * 0.7,
+        expected_risk=5.0,
+    )
+
+    print("  PASS: all 8 static/runtime combinations produced the expected level/decision/confidence/risk")
     return True
 
 

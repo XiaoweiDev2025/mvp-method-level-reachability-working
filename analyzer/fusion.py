@@ -16,9 +16,14 @@ Decision rules (applied in priority order):
   1. Static=REACHABLE + Runtime=OBSERVED      → L4  AFFECTED            conf=0.95
   2. Static=REACHABLE + Runtime=NOT_OBSERVED  → L3  LIKELY_AFFECTED     conf=0.75
   3. Static=REACHABLE + Runtime=NOT_RUN       → L3  UNDER_INVESTIGATION conf=0.60
-  4. Static=NOT_REACHABLE                     → L2  NOT_AFFECTED_CAND.  conf=0.70
-  5. Static=UNKNOWN                           → L2  UNDER_INVESTIGATION conf=0.50
-  6. No static evidence at all                → L2  UNDER_INVESTIGATION conf=0.30
+  4. Static=NOT_REACHABLE + Runtime=OBSERVED  → L2  UNDER_INVESTIGATION conf=runtime.confidence*0.7
+     (static/runtime conflict: the seed method executed despite no static path being
+     found — flagged for review rather than scored as either AFFECTED or NOT_AFFECTED,
+     since this signals a static-model blind spot, most likely reflection or dynamic
+     dispatch not visible to CHA+BFS.)
+  5. Static=NOT_REACHABLE (runtime otherwise) → L2  NOT_AFFECTED_CAND.  conf=0.70
+  6. Static=UNKNOWN                           → L2  UNDER_INVESTIGATION conf=0.50
+  7. No static evidence at all                → L2  UNDER_INVESTIGATION conf=0.30
 
 Reachability-adjusted exposure score: base_cvss × evidence_multiplier
   L4 AFFECTED:            CVSS × 1.00
@@ -198,6 +203,19 @@ def _decide(
     s = static.status
 
     if s == StaticReachability.NOT_REACHABLE:
+        if runtime is not None and runtime.status == RuntimeReachability.OBSERVED:
+            # Runtime evidence contradicts the static result: the seed method was
+            # observed executing despite no static path being found. This is a
+            # signal that the static model missed a path (reflection, dynamic
+            # proxy, or other dispatch invisible to CHA+BFS) — not that the
+            # method is safe, and not confidently AFFECTED either, since the
+            # discrepancy itself needs review. Confidence is reduced relative to
+            # the ordinary OBSERVED case (min(...) below) to reflect that conflict.
+            return (
+                EvidenceLevel.L2_SEED_IDENTIFIED,
+                Decision.UNDER_INVESTIGATION,
+                runtime.confidence * 0.7,
+            )
         # Static analysis found no path. Not safe to call "safe" (reflection could
         # be present), but it's our best current evidence.
         return (
@@ -258,4 +276,14 @@ def _build_notes(
             parts.append(f"Observed {runtime.observed_call_count} call(s)")
         if runtime.trace_ids:
             parts.append(f"Trace IDs: {runtime.trace_ids[:3]}")
+    if (
+        static and runtime
+        and static.status == StaticReachability.NOT_REACHABLE
+        and runtime.status == RuntimeReachability.OBSERVED
+    ):
+        parts.append(
+            "CONFLICT: static analysis found no path but the seed method executed at "
+            "runtime -- static analysis may have missed a path (reflection/dynamic "
+            "dispatch suspected)"
+        )
     return " | ".join(parts)

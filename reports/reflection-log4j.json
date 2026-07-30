@@ -11,12 +11,14 @@
       "evidence_summary": {
         "dependency_match": true,
         "static_reachable": false,
-        "runtime_observed": false,
+        "runtime_observed": true,
         "entry_points": [
           "com.example.App.main([Ljava/lang/String;)V"
         ],
         "call_path_depth": 0,
-        "trace_ids": []
+        "trace_ids": [
+          "9d48f58cfdf37ea0f35bdbc290b2e386"
+        ]
       },
       "static": {
         "status": "not_reachable",
@@ -37,15 +39,22 @@
         ],
         "engine": "asm-callgraph-1.0"
       },
-      "runtime": null,
-      "decision": "not_affected_candidate",
-      "decision_confidence": 0.595,
-      "risk_score": 1.0,
-      "notes": "Static: not_reachable (conf=0.7) | Uncertain features: ['invokedynamic_not_modelled']",
+      "runtime": {
+        "status": "observed",
+        "confidence": 0.95,
+        "trace_ids": [
+          "9d48f58cfdf37ea0f35bdbc290b2e386"
+        ],
+        "observed_call_count": 1
+      },
+      "decision": "under_investigation",
+      "decision_confidence": 0.6649999999999999,
+      "risk_score": 5.0,
+      "notes": "Static: not_reachable (conf=0.7) | Uncertain features: ['invokedynamic_not_modelled'] | Runtime: observed (conf=0.95) | Observed 1 call(s) | Trace IDs: ['9d48f58cfdf37ea0f35bdbc290b2e386'] | CONFLICT: static analysis found no path but the seed method executed at runtime -- static analysis may have missed a path (reflection/dynamic dispatch suspected)",
       "audit_record": null,
       "audit_history": [],
       "remediation": {
-        "priority": "MONITOR",
+        "priority": "RECOMMENDED",
         "upgrade_path": [
           {
             "artifact": "org.apache.logging.log4j:log4j-core",
@@ -56,14 +65,14 @@
         "entry_point_in_your_code": "",
         "fix_commit": "https://github.com/apache/logging-log4j2/commit/c77b3cb",
         "effort_estimate": "LOW",
-        "notes": "No confirmed reachability. Increase test coverage to determine actual exposure, or upgrade when convenient. 2.15.0 was the initial fix for CVE-2021-44228 but contained an incomplete patch (CVE-2021-45046, CVSS 9.0). 2.16.0 introduced CVE-2021-45105 (CVSS 7.5). Upgrade to 2.17.0 (Java 8+) or 2.12.4 (Java 7) as the minimum safe version."
+        "notes": "Static analysis found no path, but the seed method was observed executing at runtime -- the static model likely has a blind spot (reflection/dynamic dispatch suspected). Treat as a confirmed-execution signal, not an absence of risk. 2.15.0 was the initial fix for CVE-2021-44228 but contained an incomplete patch (CVE-2021-45046, CVSS 9.0). 2.16.0 introduced CVE-2021-45105 (CVSS 7.5). Upgrade to 2.17.0 (Java 8+) or 2.12.4 (Java 7) as the minimum safe version."
       }
     }
   ],
   "summary": {
     "total": 1,
     "affected": 0,
-    "not_affected": 1,
-    "under_investigation": 0
+    "not_affected": 0,
+    "under_investigation": 1
   }
 }
