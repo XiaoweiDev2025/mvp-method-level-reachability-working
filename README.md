@@ -193,7 +193,7 @@ This prototype is designed to produce technical evidence that may support EU Cyb
 
 - **`analysis_fingerprint`** makes each report reproducible: given the same callgraph file and seed, the result is verifiable.
 - **`--output-vex`** produces a CycloneDX 1.5 VEX document. VEX is a machine-readable format for communicating per-CVE exploitability status and can support vulnerability management and conformity-assessment workflows.
-- **`AuditRecord`** (populated at L5) captures reviewer identity, timestamp, justification, and waiver expiry: audit metadata that may be relevant to conformity assessment.
+- **`AuditRecord`** (populated at L5) captures reviewer identity, timestamp, justification, and waiver expiry, together with a snapshot of the pre-audit decision, evidence level, risk score, and confidence: audit metadata that may be relevant to conformity assessment, letting a reviewer's change be reconstructed from the report alone rather than requiring separate before/after file versioning.
 - **`generated_at`** on a report containing an L4 AFFECTED finding can support time-sensitive vulnerability management and regulatory reporting workflows.
 - **`evidence_terms`** in seed candidate output are drawn from a predefined, CWE-keyed vocabulary, not a machine-learning model. Every term is traceable to a specific keyword match in the diff, supporting independently verifiable conformity evidence.
 

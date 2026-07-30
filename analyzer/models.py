@@ -97,14 +97,28 @@ class AuditRecord:
     waiver_expires: Optional[str] = None   # ISO 8601 — if risk is temporarily accepted
     compensating_controls: str = ""        # Required when waiver_expires is set
 
+    # Pre-audit snapshot, filled in by audit.py::apply_audit_to_dict before it
+    # overwrites the finding's top-level fields. Without this, the automated
+    # decision/score that held immediately before this audit is not recoverable
+    # from the report alone (evidence_level/decision/risk_score/decision_confidence
+    # are all overwritten in place, not versioned elsewhere).
+    previous_decision: Optional[str] = None
+    previous_evidence_level: Optional[int] = None
+    previous_risk_score: Optional[float] = None
+    previous_decision_confidence: Optional[float] = None
+
     def to_dict(self) -> dict:
         return {
-            "reviewer":              self.reviewer,
-            "reviewed_at":           self.reviewed_at,
-            "decision_override":     self.decision_override,
-            "justification":         self.justification,
-            "waiver_expires":        self.waiver_expires,
-            "compensating_controls": self.compensating_controls,
+            "reviewer":                    self.reviewer,
+            "reviewed_at":                 self.reviewed_at,
+            "decision_override":           self.decision_override,
+            "justification":               self.justification,
+            "waiver_expires":               self.waiver_expires,
+            "compensating_controls":        self.compensating_controls,
+            "previous_decision":            self.previous_decision,
+            "previous_evidence_level":      self.previous_evidence_level,
+            "previous_risk_score":          self.previous_risk_score,
+            "previous_decision_confidence": self.previous_decision_confidence,
         }
 
 

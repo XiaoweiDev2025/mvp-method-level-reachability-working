@@ -63,6 +63,14 @@ def apply_audit_to_dict(finding: dict, audit_record: AuditRecord) -> dict:
     Operates on the raw dict (not EvidenceChain) to avoid reconstructing
     the full dataclass from JSON.
     """
+    # Snapshot the pre-audit state on the audit record itself before anything
+    # below overwrites it -- otherwise the automated decision/score that held
+    # immediately before this audit is unrecoverable from the report alone.
+    audit_record.previous_decision = finding.get("decision")
+    audit_record.previous_evidence_level = finding.get("evidence_level")
+    audit_record.previous_risk_score = finding.get("risk_score")
+    audit_record.previous_decision_confidence = finding.get("decision_confidence")
+
     finding["evidence_level"] = 5  # EvidenceLevel.L5_AUDITED
 
     if audit_record.decision_override:
