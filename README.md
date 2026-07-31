@@ -161,7 +161,7 @@ Package-level scanners over-approximate: they report every (app, CVE) pair where
 | REACHABLE | NOT_RUN | under_investigation | L3 |
 | NOT_REACHABLE | OBSERVED | under_investigation *(static/runtime conflict — see below)* | L2 |
 | NOT_REACHABLE | NOT_OBSERVED / NOT_RUN / absent | not_affected_candidate | L2 |
-| UNKNOWN | any | under_investigation | L1 |
+| UNKNOWN | any | under_investigation | L2 |
 
 > `REACHABLE` / `NOT_REACHABLE` are the result of the static call-graph model under the current analysis scope (see [Limitations](#limitations)), not a general claim about the deployed application's real-world exposure.
 

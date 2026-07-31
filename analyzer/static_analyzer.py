@@ -8,8 +8,12 @@ any application entry point?"
 Returns a StaticEvidence with one of three states:
   REACHABLE     — a call path was found
   NOT_REACHABLE — BFS exhausted with no path to the seed
-  UNKNOWN       — analysis is structurally incomplete (e.g., too many
-                  missing class edges to trust a NOT_REACHABLE result)
+  UNKNOWN       — no entry points could be identified in the call graph at
+                  all (currently the only trigger; see find_entry_points),
+                  so the search itself never ran. Reflection, dynamic
+                  proxy, and missing-classpath gaps do NOT produce UNKNOWN —
+                  they are recorded as uncertain_features on a REACHABLE or
+                  NOT_REACHABLE result instead (see analyze() below).
 
 The analysis uses CHA (Class Hierarchy Analysis): when a call is made
 on an interface or abstract class, we conservatively assume all known

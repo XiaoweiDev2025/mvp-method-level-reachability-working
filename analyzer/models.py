@@ -15,12 +15,18 @@ class StaticReachability(str, Enum):
     Result of static call graph analysis.
 
     NOT_REACHABLE does not mean "safe" — it means no path was found
-    within the analysis scope. Unknown static features (reflection,
-    dynamic proxy, missing classpath) are reported separately.
+    within the analysis scope. Reflection, dynamic proxy, and missing-
+    classpath gaps do not produce the UNKNOWN status below; they are
+    reported as uncertain_features alongside a REACHABLE or NOT_REACHABLE
+    result instead. UNKNOWN is reserved for a narrower failure: the search
+    could not be run at all (currently: no entry points found).
     """
     REACHABLE     = "reachable"       # A call path from entry point to seed method exists
     NOT_REACHABLE = "not_reachable"   # No path found within analysis scope
-    UNKNOWN       = "unknown"         # Analysis incomplete due to reflection / dynamic proxy / JNI / missing jars
+    UNKNOWN       = "unknown"         # No entry points found at all, so the search never ran.
+                                       # NOT for reflection/dynamic-proxy/missing-jar gaps, which are
+                                       # reported via uncertain_features on a REACHABLE/NOT_REACHABLE
+                                       # result instead (see static_analyzer.py's StaticAnalyzer.analyze()).
 
 
 class RuntimeReachability(str, Enum):
