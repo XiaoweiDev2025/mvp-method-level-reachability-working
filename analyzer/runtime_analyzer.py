@@ -98,24 +98,39 @@ def parse_trace_log(path: Path) -> list[SpanRecord]:
 # Seed matching
 # ---------------------------------------------------------------------------
 
-def _span_matches_seed(span: SpanRecord, seed: VulnerableMethod) -> bool:
+def _span_matches_seed(span: SpanRecord, seed: VulnerableMethod) -> Optional[str]:
     """
     Check whether a span corresponds to the seed method.
 
-    Primary match: code.namespace == seed.fqcn AND code.function == seed.method
-    These attributes are always present for otel.instrumentation.methods.include spans.
-
-    Fallback match: span_name contains the simple class name + method name.
-    Used when the OTel agent version doesn't emit code.* attributes.
+    Returns the match tier, or None if there is no match:
+      "exact"                — code.namespace and code.function attributes both match
+                                the seed's FQCN and method name. These attributes are
+                                always present for otel.instrumentation.methods.include
+                                spans, and identify the method unambiguously.
+      "span_name_heuristic"  — code.* attributes are absent (older or differently
+                                configured OTel agent), so the span's name is compared
+                                against "SimpleClassName.method" instead. This carries
+                                no package information, so a different class in a
+                                different package with the same simple name and method
+                                would also match -- the same identity ambiguity the
+                                static analyzer's relocated_package_suspected tier
+                                carries (static_analyzer.py::_matches_seed), which is
+                                why this tier is scored at a lower confidence than an
+                                exact match (see analyze_traces below).
+      None                   — no match.
     """
     # Primary: exact FQCN + method name from OTel attributes
     if span.code_namespace and span.code_function:
-        return span.code_namespace == seed.fqcn and span.code_function == seed.method
+        if span.code_namespace == seed.fqcn and span.code_function == seed.method:
+            return "exact"
+        return None
 
-    # Fallback: span name heuristic
+    # Fallback: span name heuristic (no package information available)
     # OTel names method spans as "SimpleClassName.method", e.g. "JndiLookup.lookup"
     simple_class = seed.fqcn.rsplit(".", 1)[-1]
-    return span.span_name == f"{simple_class}.{seed.method}"
+    if span.span_name == f"{simple_class}.{seed.method}":
+        return "span_name_heuristic"
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -137,6 +152,17 @@ def _otel_agent_was_active(trace_log: Path) -> bool:
             if "otel.javaagent" in line and "VersionLogger" in line:
                 return True
     return False
+
+
+# Confidence for an OBSERVED result, keyed by the best match tier found among the
+# matching spans. "exact" identifies the method unambiguously (FQCN + method name);
+# "span_name_heuristic" only compares simple class name + method name, carrying the
+# same package-collision ambiguity as the static analyzer's relocated_package_suspected
+# tier, and is scored lower for the same reason.
+_OBSERVED_CONFIDENCE: dict[str, float] = {
+    "exact": 0.95,
+    "span_name_heuristic": 0.70,
+}
 
 
 def analyze_traces(trace_log: Path, seed_method: VulnerableMethod) -> RuntimeEvidence:
@@ -169,14 +195,15 @@ def analyze_traces(trace_log: Path, seed_method: VulnerableMethod) -> RuntimeEvi
             test_environment="otel-logging",
         )
 
-    matching = [s for s in spans if _span_matches_seed(s, seed_method)]
+    matches = [(s, tier) for s in spans if (tier := _span_matches_seed(s, seed_method))]
 
-    if matching:
+    if matches:
+        best_tier = "exact" if any(tier == "exact" for _, tier in matches) else "span_name_heuristic"
         return RuntimeEvidence(
             status=RuntimeReachability.OBSERVED,
-            confidence=0.95,
-            trace_ids=[s.trace_id for s in matching],
-            observed_call_count=len(matching),
+            confidence=_OBSERVED_CONFIDENCE[best_tier],
+            trace_ids=[s.trace_id for s, _ in matches],
+            observed_call_count=len(matches),
             test_environment="otel-logging-javaagent-1.32.0",
         )
     else:
