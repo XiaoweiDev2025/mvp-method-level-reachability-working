@@ -4,11 +4,17 @@ Audit subcommand: promote a finding to L5 AUDITED after human review.
 Reads an existing JSON report produced by pipeline.py, applies a reviewer's
 sign-off to one finding, and writes the updated report back.
 
-CRA Article 14 relevance:
-  The timestamp on a report containing L4 AFFECTED marks when the manufacturer
-  became aware. AuditRecord captures the subsequent human review: who confirmed
-  it, when, and on what basis — satisfying the "addressed in a timely manner"
-  documentation requirement.
+CRA relevance:
+  The timestamp on a report containing L4 AFFECTED marks when this system's own
+  automated evidence first reached its strongest finding for this CVE -- relevant
+  to demonstrating ongoing vulnerability-handling due diligence in general. This is
+  NOT the same thing as CRA Article 14's "actively exploited vulnerability" trigger
+  (Article 3(42)): that requires reliable evidence of real, unauthorised exploitation
+  by a malicious actor, a stronger and different claim than reachability plus
+  instrumented execution evidence from a test run. AuditRecord captures the
+  subsequent human review -- who confirmed it, when, and on what basis -- which is
+  what a producer would actually rely on when separately judging whether an
+  Article 14 report is warranted, not the L4 finding by itself.
 
 Usage:
     python analyzer/audit.py \\

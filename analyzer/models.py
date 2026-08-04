@@ -106,9 +106,14 @@ class AuditRecord:
     """
     Structured reviewer sign-off for L5 AUDITED evidence.
 
-    CRA Article 14 implication: the timestamp on a report containing L4 AFFECTED
-    is legally "when the manufacturer became aware". AuditRecord captures the
-    subsequent human review: who confirmed it, when, and on what basis.
+    CRA relevance: the timestamp on a report containing L4 AFFECTED marks when this
+    system's own automated evidence first reached its strongest finding for this CVE.
+    This is not itself a CRA Article 14 "actively exploited vulnerability" determination
+    (Article 3(42) requires reliable evidence of real, unauthorised exploitation by a
+    malicious actor -- a stronger, separate claim from reachability plus instrumented
+    execution evidence). AuditRecord captures the subsequent human review: who
+    confirmed it, when, and on what basis -- the record a producer would actually rely
+    on when separately judging whether an Article 14 report is warranted.
     """
     reviewer: str
     reviewed_at: str                       # ISO 8601 — treated as immutable once set
