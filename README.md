@@ -183,7 +183,7 @@ Package-level scanners over-approximate: they report every (app, CVE) pair where
 
 **NOT_OBSERVED != NOT_REACHABLE**: Runtime evidence only covers the execution paths taken in the test suite. `NOT_OBSERVED` means the method was not seen in the observed runs, not that it is unreachable. The OTel agent's `VersionLogger` startup line is used to distinguish `NOT_OBSERVED` (agent ran, method not called) from `NOT_RUN` (agent was not attached at all).
 
-**Static/runtime conflict detection**: if static analysis reports NOT_REACHABLE but runtime evidence shows the seed method OBSERVED executing anyway, `fusion.py` does not let the static result silently win. This combination is flagged as `under_investigation` (not `not_affected_candidate`) with an explicit `CONFLICT:` note, and `remediation.py` raises its priority to `RECOMMENDED` rather than the default `MONITOR` — since direct execution evidence is stronger than an ordinary "haven't tested yet" finding. In practice this is the signature of a static-model blind spot (reflection, dynamic proxy, or other dispatch invisible to CHA+BFS); see the [reflection false negative demo](#reflection-false-negative-demo-expected-not_reachable-known-analysis-limitation) below for a worked example.
+**Static/runtime conflict detection**: if static analysis reports NOT_REACHABLE but runtime evidence shows the seed method OBSERVED executing anyway, `fusion.py` does not let the static result silently win. This combination is flagged as `under_investigation` (not `not_affected_candidate`) with an explicit `CONFLICT:` note, and `remediation.py` raises its priority to `RECOMMENDED` rather than the default `MONITOR` — because two independently-produced evidence sources actively disagreeing is itself a stronger signal that something needs review than an ordinary "haven't tested yet" finding, regardless of which of the two sources turns out to be right. Confidence for this case is `min(static.confidence, runtime.confidence) * 0.7`: neither source is assumed more trustworthy than the other going in (runtime's own confidence is itself tiered by match quality — see below — not an infallible direct measurement), so the formula anchors on whichever of the two is currently the more uncertain, then discounts further for the disagreement itself. In practice this combination is the signature of a static-model blind spot (reflection, dynamic proxy, or other dispatch invisible to CHA+BFS); see the [reflection false negative demo](#reflection-false-negative-demo-expected-not_reachable-known-analysis-limitation) below for a worked example.
 
 **Light CVE mapping** parses git diff hunk headers (`@@ -a,b +c,d @@ function_context`) to identify which method was modified in the fix commit. This is more reliable than scanning for `+` lines alone because the hunk header names the enclosing function even when the fix is purely additive (no removed lines).
 
@@ -503,7 +503,7 @@ python analyzer/pipeline.py \
   --output reports/reflection-log4j.json --cve CVE-2021-44228
 ```
 
-Expected: `L2  under_investigation  risk=5.0  conf=0.66  remedy=RECOMMENDED`, with the report's
+Expected: `L2  under_investigation  risk=5.0  conf=0.49  remedy=RECOMMENDED`, with the report's
 `notes` field carrying an explicit conflict message: *"CONFLICT: static analysis found no path but
 the seed method executed at runtime -- static analysis may have missed a path (reflection/dynamic
 dispatch suspected)."* The fusion engine (`fusion.py::_decide`) treats a static/runtime
