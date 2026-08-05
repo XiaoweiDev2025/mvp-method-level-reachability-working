@@ -87,6 +87,18 @@ To verify that the pipeline generalises beyond its own demo projects, it was app
 
 The pipeline produced the same evidence structure as on the bundled demos, from a fully independent extraction. See [Applying the Pipeline to an External Project](#applying-the-pipeline-to-an-external-project) for the full reproduction steps.
 
+To complement this reachable case with a genuine non-reachable one, the pipeline was also applied to a specific historical release of [`yangzongzhuan/RuoYi`](https://github.com/yangzongzhuan/RuoYi) (tag `v4.5.1`), a widely-used open-source Java administration framework. At that tag its `pom.xml` pins `commons-io:2.5` (vulnerable to CVE-2021-29425); the project has since upgraded past the fixed version, so this is a historical snapshot, not a claim about its current security posture. Source is not vendored for this case — see [`demo-projects/ruoyi-external-validation/README.md`](demo-projects/ruoyi-external-validation/README.md) for full provenance and reproduction steps; only the built JARs used as pipeline input are kept in this repo.
+
+| | |
+|---|---|
+| JARs analysed | 127 (6 module JARs + 121 dependencies) |
+| Call graph edges extracted | 874,611 |
+| Entry points | `RuoYiApplication.main`, `EscapeUtil.main`, `CommonController.uploadFile` (real file-upload endpoint) |
+| Static result | NOT_REACHABLE (only call site into `FilenameUtils` is `getExtension()`, which never reaches `getPrefixLength()`) |
+| Final decision | **L2 NOT_AFFECTED_CANDIDATE, risk=0.5, conf=0.595** |
+
+No live runtime instrumentation was captured for this case (RuoYi requires a MySQL-backed deployment); the exhaustive call-site count already gives a stronger guarantee than a runtime trace bounded to whichever payloads happen to be sent.
+
 ---
 
 ## Evaluation
