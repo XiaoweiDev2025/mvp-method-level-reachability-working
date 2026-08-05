@@ -149,7 +149,7 @@ def test_all_decide_branches():
         runtime=RuntimeEvidence(status=RuntimeReachability.OBSERVED, confidence=0.95),
         expected_level=EvidenceLevel.L2_SEED_IDENTIFIED,
         expected_decision=Decision.UNDER_INVESTIGATION,
-        expected_confidence=0.95 * 0.7,
+        expected_confidence=0.7 * 0.7,
         expected_risk=5.0,
     )
 

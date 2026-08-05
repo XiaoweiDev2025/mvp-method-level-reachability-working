@@ -16,7 +16,7 @@ Decision rules (applied in priority order):
   1. Static=REACHABLE + Runtime=OBSERVED      → L4  AFFECTED            conf=0.95
   2. Static=REACHABLE + Runtime=NOT_OBSERVED  → L3  LIKELY_AFFECTED     conf=0.75
   3. Static=REACHABLE + Runtime=NOT_RUN       → L3  UNDER_INVESTIGATION conf=0.60
-  4. Static=NOT_REACHABLE + Runtime=OBSERVED  → L2  UNDER_INVESTIGATION conf=runtime.confidence*0.7
+  4. Static=NOT_REACHABLE + Runtime=OBSERVED  → L2  UNDER_INVESTIGATION conf=min(static.confidence, runtime.confidence)*0.7
      (static/runtime conflict: the seed method executed despite no static path being
      found — flagged for review rather than scored as either AFFECTED or NOT_AFFECTED,
      since this signals a static-model blind spot, most likely reflection or dynamic
@@ -205,16 +205,20 @@ def _decide(
     if s == StaticReachability.NOT_REACHABLE:
         if runtime is not None and runtime.status == RuntimeReachability.OBSERVED:
             # Runtime evidence contradicts the static result: the seed method was
-            # observed executing despite no static path being found. This is a
-            # signal that the static model missed a path (reflection, dynamic
-            # proxy, or other dispatch invisible to CHA+BFS) — not that the
-            # method is safe, and not confidently AFFECTED either, since the
-            # discrepancy itself needs review. Confidence is reduced relative to
-            # the ordinary OBSERVED case (min(...) below) to reflect that conflict.
+            # observed executing despite no static path being found. This is
+            # consistent with a static-model blind spot (reflection, dynamic
+            # proxy, or other dispatch invisible to CHA+BFS) -- but runtime
+            # evidence is not inherently more trustworthy than static evidence:
+            # an OBSERVED match may itself rest on the weaker heuristic
+            # span-name fallback rather than an exact match, or on a test
+            # payload that only coincidentally resembles a real trigger. Neither
+            # channel is privileged, so confidence is anchored on whichever of
+            # the two is *more* uncertain (matching L4's own min(...) below),
+            # then further discounted for the disagreement itself.
             return (
                 EvidenceLevel.L2_SEED_IDENTIFIED,
                 Decision.UNDER_INVESTIGATION,
-                runtime.confidence * 0.7,
+                min(static.confidence, runtime.confidence) * 0.7,
             )
         # Static analysis found no path. Not safe to call "safe" (reflection could
         # be present), but it's our best current evidence.

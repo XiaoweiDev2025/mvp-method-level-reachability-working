@@ -48,7 +48,7 @@
         "observed_call_count": 1
       },
       "decision": "under_investigation",
-      "decision_confidence": 0.6649999999999999,
+      "decision_confidence": 0.48999999999999994,
       "risk_score": 5.0,
       "notes": "Static: not_reachable (conf=0.7) | Uncertain features: ['invokedynamic_not_modelled'] | Runtime: observed (conf=0.95) | Observed 1 call(s) | Trace IDs: ['9d48f58cfdf37ea0f35bdbc290b2e386'] | CONFLICT: static analysis found no path but the seed method executed at runtime -- static analysis may have missed a path (reflection/dynamic dispatch suspected)",
       "audit_record": null,
