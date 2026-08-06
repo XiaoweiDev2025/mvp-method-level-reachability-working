@@ -9,6 +9,7 @@
       "seed_method": "org.codehaus.plexus.archiver.AbstractUnArchiver.extractFile(Ljava/io/File;Ljava/io/File;Ljava/io/InputStream;Ljava/lang/String;Ljava/util/Date;ZLjava/lang/Integer;Ljava/lang/String;)V",
       "evidence_level": 2,
       "evidence_summary": {
+        "component_check_status": "in_range",
         "dependency_match": true,
         "static_reachable": false,
         "runtime_observed": false,

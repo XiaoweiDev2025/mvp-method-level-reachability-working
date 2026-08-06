@@ -5,7 +5,7 @@ Runs the complete evidence chain:
   seed (YAML) -> static analysis -> runtime traces -> fusion -> EvidenceChain
 
 Expected final output:
-  evidence_level  : L4_RUNTIME_OBSERVED
+  evidence_level  : L4_STATIC_RUNTIME_CORROBORATED
   decision        : AFFECTED
   risk_score      : 10.0  (full CVSS-10.0 preserved since L4 AFFECTED)
 
@@ -145,6 +145,7 @@ def test_assess_cve_l1_short_circuit():
     assert chain.runtime_evidence is None, "runtime analysis must have been skipped"
     assert chain.risk_score == 0.5, f"Expected 0.5 (10.0 CVSS x 0.05 L1 multiplier), got {chain.risk_score}"
     assert "2.17.1" in chain.notes
+    assert chain.component_check_status == "out_of_range", chain.component_check_status
     assert advice.priority == "MONITOR", advice.priority
     assert "outside" in advice.notes.lower()
 

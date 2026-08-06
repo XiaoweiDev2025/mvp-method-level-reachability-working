@@ -12,20 +12,31 @@ Design principle: NEVER discard evidence. Both static and runtime results
 are preserved in the EvidenceChain. The decision is a transparent function
 of the evidence, not a black box.
 
-L1 component-presence check (fuse_component_absent, called separately from
-_decide() below): before static/runtime analysis runs at all, pipeline.py
-checks whether the analysed project's own JARs actually contain the seed's
-vulnerable_component at a version inside vulnerable_range (component_check.py,
-reading each JAR's own embedded Maven coordinates). A seed only records which
-package and version range a CVE affects in general; it does not by itself
-establish that *this* project depends on an affected version. When that check
-positively confirms the version is out of range, fuse_component_absent()
-short-circuits straight to a L1 NOT_AFFECTED_CANDIDATE finding and static/
-runtime analysis is skipped -- there is no reachability question to ask about
-a component version the project does not depend on. When the check is
-inconclusive (no matching JAR found, e.g. a non-Maven build or a shaded JAR
-with its coordinate metadata stripped) or confirms the version is in range,
-analysis proceeds exactly as before through _decide() below.
+L1 component check (fuse_component_absent, called separately from _decide()
+below): before static/runtime analysis runs at all, pipeline.py checks
+whether the analysed project's own JARs actually carry the seed's
+vulnerable_component at a version inside vulnerable_range
+(component_check.py, reading each supplied JAR's own embedded Maven
+coordinates -- a check bounded to the JARs actually supplied, not a resolved
+Maven/Gradle dependency tree). A seed only records which package and version
+range a CVE affects in general; it does not by itself establish that *this*
+project depends on an affected version. This check produces one of three
+ComponentCheckStatus outcomes, not a present/absent boolean: IN_RANGE (at
+least one matching JAR's version falls inside vulnerable_range),
+OUT_OF_RANGE (every matching JAR's version was confirmed outside
+vulnerable_range), or INCONCLUSIVE (no matching JAR found, or a matching
+JAR's version could not be confidently compared -- see component_check.py's
+own docstring). Only OUT_OF_RANGE short-circuits: fuse_component_absent()
+returns a L1 NOT_AFFECTED_CANDIDATE finding and static/runtime analysis is
+skipped, since the seed's package-and-version model makes method-level
+analysis for this seeded vulnerability unnecessary. IN_RANGE and
+INCONCLUSIVE both proceed exactly as before through _decide() below, but
+unlike an earlier version of this design, the resolved ComponentCheckStatus
+is not simply discarded once the pipeline moves past it -- fuse() records it
+on the returned EvidenceChain as component_check_status, so an IN_RANGE or
+INCONCLUSIVE result is still visible in the final report, not just the
+OUT_OF_RANGE short-circuit case. An
+inconclusive check is never treated as evidence of absence.
 
 Decision rules (applied in priority order):
   1. Static=REACHABLE + Runtime=OBSERVED      → L4  AFFECTED            conf=0.95
@@ -66,15 +77,18 @@ evolves — a method unreachable today may become reachable after a
 refactor. The specific value 0.10 is conservative and should be
 calibrated against a labelled exploit dataset in future work.
 
-The 0.05 residual for a confirmed-absent component (L1) is lower than the
-0.10 NOT_REACHABLE residual because it reflects a narrower source of
-uncertainty: the version comparator in component_check.py is a deliberately
-narrow implementation, not a full Maven ComparableVersion algorithm, and only
-the first matching JAR found is checked, so a second, independently-vendored
-or shaded copy of the vulnerable code under different coordinates would not
-be detected. It is not 0.00 because "the version we found is out of range"
-is not the same claim as "no copy of the vulnerable code exists anywhere in
-this build."
+The 0.05 residual for an OUT_OF_RANGE component (L1) is lower than the 0.10
+NOT_REACHABLE residual because it reflects a narrower source of uncertainty.
+component_check.py checks every supplied JAR carrying matching Maven
+coordinates, not just the first one found, and only reaches OUT_OF_RANGE when
+every one of them is confirmed outside vulnerable_range with no ambiguous
+comparison among them -- so the residual is not about a second, undetected
+matching JAR at a different version, which the check does account for. It is
+about what a metadata-only check cannot see at all: an independently-vendored
+or shaded copy of the vulnerable code under different, non-matching Maven
+coordinates. It is not 0.00 because "every matching JAR we found is out of
+range" is not the same claim as "no copy of the vulnerable code exists
+anywhere in this build."
 
 L5 AUDITED findings no longer map to a static/runtime evidence tier, so
 their risk_score is recomputed from DECISION_BASE_MULTIPLIER (keyed by
@@ -89,8 +103,9 @@ import hashlib
 from pathlib import Path
 from typing import Optional
 
-from component_check import ComponentPresenceResult
+from component_check import ComponentCheckResult
 from models import (
+    ComponentCheckStatus,
     Decision,
     EvidenceChain,
     EvidenceLevel,
@@ -176,12 +191,21 @@ def fuse(
     seed: Seed,
     static: Optional[StaticEvidence] = None,
     runtime: Optional[RuntimeEvidence] = None,
+    component_status: Optional[ComponentCheckStatus] = None,
 ) -> EvidenceChain:
     """
     Combine static and runtime evidence into a complete EvidenceChain.
 
     All inputs are optional — the engine degrades gracefully:
       no static + no runtime → L2 UNDER_INVESTIGATION
+
+    component_status, when supplied, is the ComponentCheckStatus the L1 check
+    resolved to before this call was reached (always IN_RANGE or INCONCLUSIVE
+    here -- an OUT_OF_RANGE result never reaches fuse() at all, since
+    pipeline.py routes it to fuse_component_absent() instead). It is recorded
+    on the returned chain so the L1 outcome is not silently discarded once
+    analysis proceeds past it -- consistent with this module's own "never
+    discard evidence" design principle above.
     """
     vm = seed.primary_method
     seed_sig = vm.full_signature
@@ -207,6 +231,7 @@ def fuse(
         vulnerable_component=f"{seed.package.group_id}:{seed.package.artifact_id}:{seed.package.vulnerable_range}",
         seed_method=seed_sig,
         evidence_level=level,
+        component_check_status=component_status.value if component_status else None,
         static_evidence=static,
         runtime_evidence=runtime,
         decision=decision,
@@ -220,20 +245,25 @@ def fuse_component_absent(
     cve: str,
     project_artifact: str,
     seed: Seed,
-    component: ComponentPresenceResult,
+    component: ComponentCheckResult,
 ) -> EvidenceChain:
     """
-    Short-circuit fusion for a component confirmed absent at a vulnerable
-    version: component_check.py read the project's own JARs and found
-    seed.package's group_id:artifact_id at a version outside
+    Short-circuit fusion for a component check that resolved to
+    ComponentCheckStatus.OUT_OF_RANGE: every supplied JAR carrying
+    seed.package's group_id:artifact_id was confirmed at a version outside
     seed.package.vulnerable_range. Static and runtime analysis are skipped
-    entirely -- there is no reachability question to ask about a component
-    version this project does not depend on. Caller is responsible for only
-    invoking this when component.checked and component.in_range is False;
-    see this module's own docstring for the inconclusive/in-range cases,
-    which proceed through fuse()/_decide() as before.
+    entirely: under the seed's package-and-version model, an exact
+    coordinate match outside the declared vulnerable range makes
+    method-level analysis for this seeded vulnerability unnecessary. The
+    result still stays a *candidate* finding, not a plain NOT_AFFECTED, since
+    a metadata check does not exclude repackaged code, incomplete
+    coordinates, or errors in the seed's own affected-version range. Caller
+    is responsible for only invoking this when component.status is
+    OUT_OF_RANGE; see this module's own docstring for the
+    IN_RANGE/INCONCLUSIVE cases, which proceed through fuse()/_decide() as
+    before.
     """
-    level = EvidenceLevel.L1_COMPONENT_PRESENT
+    level = EvidenceLevel.L1_COMPONENT_ASSESSED
     decision = Decision.NOT_AFFECTED_CANDIDATE
     confidence = 0.90
 
@@ -241,13 +271,14 @@ def fuse_component_absent(
     multiplier = _risk_multiplier(decision, level)
     risk_score = round(base_cvss * multiplier, 1)
 
-    jar_name = component.jar_path.name if component.jar_path else "?"
+    versions_found = ", ".join(f"{v} ({p.name})" for p, v in component.matches)
     notes = (
-        f"Component check: {seed.package.coordinates} found at version "
-        f"{component.found_version} in {jar_name}, outside the vulnerable "
-        f"range {seed.package.vulnerable_range}. Static/runtime analysis "
-        "skipped -- this project does not depend on a vulnerable version of "
-        "this component."
+        f"Component check: every JAR supplying {seed.package.coordinates} "
+        f"coordinates ({versions_found}) was outside the vulnerable range "
+        f"{seed.package.vulnerable_range}. Static/runtime analysis skipped "
+        "for this seeded vulnerability, but the check does not exclude "
+        "repackaged/relocated copies of the vulnerable code under different "
+        "coordinates."
     )
 
     return EvidenceChain(
@@ -257,6 +288,7 @@ def fuse_component_absent(
         vulnerable_component=f"{seed.package.group_id}:{seed.package.artifact_id}:{seed.package.vulnerable_range}",
         seed_method=seed.primary_method.full_signature,
         evidence_level=level,
+        component_check_status=component.status.value,
         static_evidence=None,
         runtime_evidence=None,
         decision=decision,
@@ -368,7 +400,7 @@ def _decide(
 
     # runtime.status == OBSERVED — strongest evidence
     return (
-        EvidenceLevel.L4_RUNTIME_OBSERVED,
+        EvidenceLevel.L4_STATIC_RUNTIME_CORROBORATED,
         Decision.AFFECTED,
         min(static.confidence, runtime.confidence),
     )

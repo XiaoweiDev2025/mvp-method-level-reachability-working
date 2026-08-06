@@ -45,7 +45,7 @@ EVALUATION_MATRIX = [
 ]
 
 EVIDENCE_LABEL = {
-    "affected":               "L4 RUNTIME_OBSERVED / AFFECTED",
+    "affected":               "L4 STATIC_RUNTIME_CORROBORATED / AFFECTED",
     "likely_affected":        "L3 STATIC_REACHABLE / NOT_OBSERVED",
     "under_investigation":    "L3 STATIC_REACHABLE / NOT_RUN",
     "not_affected_candidate": "L2 NOT_REACHABLE",

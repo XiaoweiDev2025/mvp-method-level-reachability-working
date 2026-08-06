@@ -26,7 +26,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from component_check import check_component_present
 from fusion import fuse, fuse_component_absent
-from models import EvidenceChain
+from models import ComponentCheckStatus, EvidenceChain
 from remediation import RemediationAdvice, build_remediation
 from runtime_analyzer import analyze_traces
 from seed_loader import Seed, load_all_seeds_with_errors
@@ -56,11 +56,11 @@ def assess_cve(
     # vulnerable component, at a version inside its vulnerable_range? A seed
     # only records which package/range a CVE affects in general; it says
     # nothing about whether *this* project depends on an affected version.
-    # Only a positive, confirmed-out-of-range result short-circuits here --
-    # an inconclusive check (no matching JAR found) falls through to static
-    # analysis rather than claiming a confident absence on missing metadata.
+    # Only a confirmed OUT_OF_RANGE result short-circuits here -- INCONCLUSIVE
+    # (no matching JAR found, or an ambiguous version comparison) falls through
+    # to static analysis rather than claiming a confident absence.
     component = check_component_present(project_jars, seed.package)
-    if component.checked and component.in_range is False:
+    if component.status == ComponentCheckStatus.OUT_OF_RANGE:
         chain = fuse_component_absent(
             cve=cve_id,
             project_artifact=project_artifact,
@@ -91,6 +91,7 @@ def assess_cve(
         seed             = seed,
         static           = static_ev,
         runtime          = runtime_ev,
+        component_status = component.status,
     )
 
     advice = build_remediation(chain, seed, project_prefix or "")

@@ -5,61 +5,78 @@ the vulnerable component, at a version within the seed's declared vulnerable ran
 This did not previously exist. assess_cve() went straight from a validated
 seed to static call-graph analysis, taking on faith that whoever supplied
 --project-jars had already confirmed the vulnerable component was present at
-an affected version -- L1_COMPONENT_PRESENT was defined in the EvidenceLevel
+an affected version -- L1_COMPONENT_ASSESSED was defined in the EvidenceLevel
 enum but never independently produced by any code path. A seed only records
 which package and version range a CVE affects; it says nothing about which
 JARs a *particular* analysed project actually ships.
 
-Scope: this reads each JAR's own embedded Maven coordinates
-(META-INF/maven/<groupId>/<artifactId>/pom.properties, written by the Maven
-JAR plugin into essentially every JAR published through Maven Central) rather
-than parsing a build file, since the pipeline's own input is already a flat
-JAR set, not a project checkout. The version comparator is a deliberately
-narrow implementation, not a full Maven ComparableVersion algorithm: it
-compares dot/dash/underscore-separated segments numerically where possible,
-treats a non-numeric qualifier segment as sorting below the same version
-without one, and does not implement Maven's full qualifier-ordering table
-(alpha < beta < milestone < rc < snapshot < (release) < sp). This is
-sufficient for the plain-numeric versions and the single-qualifier lower
-bound (">=2.0-beta9") this thesis's own seed corpus actually uses, and is
-not offered as a general-purpose replacement for Maven's own version
-comparison.
+Scope: this reads embedded Maven coordinates
+(META-INF/maven/<groupId>/<artifactId>/pom.properties) from the JARs actually
+supplied to the pipeline, when the Maven packaging process has retained that
+metadata, rather than resolving a full Maven/Gradle dependency tree. This is a
+narrower claim than "the component is/isn't in the project's dependency tree":
+it can only speak to the JARs it was actually given, and a JAR built by a
+non-Maven process, or one whose coordinate metadata was stripped during
+shading, carries no signal either way.
+
+Every JAR carrying matching group_id:artifact_id coordinates is checked, not
+just the first one found -- a classpath can genuinely contain more than one
+version of the same component (for instance a patched direct dependency
+alongside an old vendored copy bundled inside a third-party JAR), and checking
+only the first match risks a false OUT_OF_RANGE verdict if that JAR happens to
+be the safe one. See check_component_present()'s combination rule.
+
+The version comparator is a deliberately narrow implementation, not a full
+Maven ComparableVersion algorithm: two purely numeric segments are compared
+numerically, and two qualifier segments (an optional alphabetic prefix plus an
+optional trailing numeric suffix, e.g. "beta9" -> ("beta", 9)) are compared
+numerically on that suffix when their prefixes agree. Two qualifier segments
+with *different* prefixes (e.g. "beta9" vs "rc1") would require Maven's own
+qualifier-ordering table (alpha < beta < milestone < rc < snapshot < (release)
+< sp) to resolve correctly, which is not implemented here; rather than guess
+via lexical string order (which does not reliably match that table), such a
+comparison -- and any segment containing characters outside a plain
+alphanumeric token -- is refused and reported as unparseable, propagating to
+an INCONCLUSIVE result rather than a silently-possibly-wrong verdict.
 """
 
 from __future__ import annotations
 
 import re
 import zipfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
+from models import ComponentCheckStatus
 from seed_loader import SeedPackage
 
 
 @dataclass
-class ComponentPresenceResult:
+class ComponentCheckResult:
     """
-    Outcome of checking whether a seed's vulnerable component is present,
-    at what version, and whether that version falls in the vulnerable range.
+    Outcome of check_component_present(): a ComponentCheckStatus plus the full
+    audit trail of every JAR that carried matching Maven coordinates, in the
+    order encountered.
 
-    checked        — False only if no supplied JAR carried Maven coordinates
-                      for this group_id:artifact_id at all. This is treated
-                      as inconclusive, not as "absent": a JAR can genuinely
-                      contain the component without pom.properties (a non-
-                      Maven build, or metadata stripped during shading), so
-                      the pipeline proceeds to static analysis rather than
-                      reporting a confident negative on missing metadata.
-    found_version   — the version string read from the matching JAR's own
-                      pom.properties, if `checked` is True.
-    in_range        — whether found_version falls within the seed's
-                      vulnerable_range, if `checked` is True.
-    jar_path        — which supplied JAR the coordinates were read from.
+    matches -- (jar_path, version) for every supplied JAR whose own embedded
+    coordinates matched the seed's group_id:artifact_id, regardless of which
+    way its version compared. Empty when status is INCONCLUSIVE with no
+    matching JAR found at all; non-empty when status is INCONCLUSIVE because a
+    matching JAR's version could not be confidently compared.
     """
-    checked: bool
-    found_version: Optional[str] = None
-    in_range: Optional[bool] = None
-    jar_path: Optional[Path] = None
+    status: ComponentCheckStatus
+    matches: list[tuple[Path, str]] = field(default_factory=list)
+
+    @property
+    def found_version(self) -> Optional[str]:
+        """Version of the first matching JAR, for callers that just need one representative value."""
+        return self.matches[0][1] if self.matches else None
+
+    @property
+    def jar_path(self) -> Optional[Path]:
+        """Path of the first matching JAR, for callers that just need one representative value."""
+        return self.matches[0][0] if self.matches else None
 
 
 def _read_pom_properties(jar_path: Path) -> Optional[tuple[str, str, str]]:
@@ -90,34 +107,79 @@ def _read_pom_properties(jar_path: Path) -> Optional[tuple[str, str, str]]:
     return None
 
 
-def _version_key(segment: str) -> tuple[int, object]:
-    """Sort key for one dot/dash/underscore-separated version segment."""
-    if segment.isdigit():
-        return (1, int(segment))
-    return (0, segment)  # non-numeric qualifier sorts below a numeric segment
+_QUALIFIER_RE = re.compile(r"^([A-Za-z]*)(\d*)$")
 
 
-def _compare_versions(a: str, b: str) -> int:
+def _parse_segment(segment: str):
     """
-    Returns -1, 0, or 1 for a<b, a==b, a>b under the narrow comparator
-    documented in this module's own docstring.
+    Classifies one dot/dash/underscore-separated version segment:
+      ("numeric", int)                -- segment is purely digits
+      ("qualifier", (prefix, suffix)) -- an optional alphabetic prefix plus an
+                                          optional trailing numeric suffix,
+                                          suffix defaulting to 0 when absent
+                                          (e.g. "beta9" -> ("beta", 9),
+                                          "rc" -> ("rc", 0))
+      ("unparseable", None)           -- neither pattern matches (unexpected
+                                          characters, e.g. "1.0+build5")
+    """
+    if segment.isdigit():
+        return ("numeric", int(segment))
+    m = _QUALIFIER_RE.match(segment)
+    if m and (m.group(1) or m.group(2)):
+        prefix, suffix = m.group(1), m.group(2)
+        return ("qualifier", (prefix, int(suffix) if suffix else 0))
+    return ("unparseable", None)
+
+
+def _compare_segments(a: str, b: str) -> Optional[int]:
+    """
+    Compares one pair of version segments. Returns -1/0/1, or None if the
+    comparison cannot be made with confidence -- see this module's own
+    docstring for when that happens (an unparseable segment, or two
+    qualifiers with different alphabetic prefixes).
+    """
+    kind_a, val_a = _parse_segment(a)
+    kind_b, val_b = _parse_segment(b)
+    if kind_a == "unparseable" or kind_b == "unparseable":
+        return None
+    if kind_a == "numeric" and kind_b == "numeric":
+        return (val_a > val_b) - (val_a < val_b)
+    if kind_a == "qualifier" and kind_b == "qualifier":
+        prefix_a, suffix_a = val_a
+        prefix_b, suffix_b = val_b
+        if prefix_a != prefix_b:
+            return None
+        return (suffix_a > suffix_b) - (suffix_a < suffix_b)
+    # one numeric, one qualifier at the same position: a bare numeric segment
+    # sorts above a qualifier segment (e.g. "2.7" > "2.7-beta1")
+    return 1 if kind_a == "numeric" else -1
+
+
+def _compare_versions(a: str, b: str) -> Optional[int]:
+    """
+    Returns -1, 0, or 1 for a<b, a==b, a>b, or None if any segment pair could
+    not be confidently compared (see _compare_segments).
     """
     segs_a = re.split(r"[.\-_]", a)
     segs_b = re.split(r"[.\-_]", b)
     for sa, sb in zip(segs_a, segs_b):
-        ka, kb = _version_key(sa), _version_key(sb)
-        if ka != kb:
-            return -1 if ka < kb else 1
+        cmp = _compare_segments(sa, sb)
+        if cmp is None:
+            return None
+        if cmp != 0:
+            return cmp
     if len(segs_a) != len(segs_b):
         # Shorter side is missing trailing segments; treat a missing numeric
         # segment as 0 (so "2.7" == "2.7.0"), a missing qualifier segment as
         # absent-sorts-higher (so "2.7" > "2.7-beta1").
         longer, a_is_longer = (segs_a, True) if len(segs_a) > len(segs_b) else (segs_b, False)
         extra = longer[min(len(segs_a), len(segs_b)):]
-        extra_is_qualifier = any(not s.isdigit() for s in extra)
-        if extra_is_qualifier:
+        extra_kinds = [_parse_segment(s)[0] for s in extra]
+        if "unparseable" in extra_kinds:
+            return None
+        if "qualifier" in extra_kinds:
             # whichever side carries the extra qualifier segment(s) is the
-            # pre-release and sorts lower (e.g. "2.7" > "2.7-beta1")
+            # pre-release and sorts lower
             return -1 if a_is_longer else 1
         return 0
     return 0
@@ -126,14 +188,18 @@ def _compare_versions(a: str, b: str) -> int:
 _RANGE_CLAUSE = re.compile(r"(>=|<=|>|<)\s*([\w.\-]+)")
 
 
-def _version_satisfies_range(version: str, range_str: str) -> bool:
+def _version_satisfies_range(version: str, range_str: str) -> Optional[bool]:
     """
     range_str is a comma-separated AND of clauses, e.g. ">=2.0,<2.7" or
-    "<3.6.0" -- the only forms this thesis's own seed corpus uses.
+    "<3.6.0" -- the only forms this thesis's own seed corpus uses. Returns
+    None, rather than guessing True/False, if any clause's comparison is
+    unparseable (see _compare_versions).
     """
     clauses = _RANGE_CLAUSE.findall(range_str)
     for op, bound in clauses:
         cmp = _compare_versions(version, bound)
+        if cmp is None:
+            return None
         if op == ">=" and not (cmp >= 0):
             return False
         if op == ">" and not (cmp > 0):
@@ -164,26 +230,36 @@ def _iter_jars(project_jars: list[Path]):
 def check_component_present(
     project_jars: list[Path],
     seed_package: SeedPackage,
-) -> ComponentPresenceResult:
+) -> ComponentCheckResult:
     """
-    Scan project_jars for one whose own embedded Maven coordinates match
-    seed_package's group_id:artifact_id, and check its version against
+    Scan project_jars for every JAR whose own embedded Maven coordinates match
+    seed_package's group_id:artifact_id, and check each one's version against
     seed_package.vulnerable_range.
 
-    If more than one supplied JAR matches (e.g. a bundled uber-JAR alongside
-    its unpacked dependency), the first match encountered is used; this
-    pipeline does not currently attempt to reconcile disagreeing duplicates.
+    Combination rule across all matches found (deliberately biased toward
+    never claiming a false absence):
+      - any match confirmed IN_RANGE  -> overall IN_RANGE
+      - else any match unparseable    -> overall INCONCLUSIVE
+      - else (all matches OUT_OF_RANGE, and at least one match exists)
+                                       -> overall OUT_OF_RANGE
+      - no match found at all         -> overall INCONCLUSIVE
     """
+    matches: list[tuple[Path, str]] = []
     for jar_path in _iter_jars(project_jars):
         coords = _read_pom_properties(jar_path)
         if coords is None:
             continue
         group_id, artifact_id, version = coords
         if group_id == seed_package.group_id and artifact_id == seed_package.artifact_id:
-            return ComponentPresenceResult(
-                checked=True,
-                found_version=version,
-                in_range=_version_satisfies_range(version, seed_package.vulnerable_range),
-                jar_path=jar_path,
-            )
-    return ComponentPresenceResult(checked=False)
+            matches.append((jar_path, version))
+
+    if not matches:
+        return ComponentCheckResult(status=ComponentCheckStatus.INCONCLUSIVE, matches=[])
+
+    verdicts = [_version_satisfies_range(version, seed_package.vulnerable_range) for _, version in matches]
+
+    if any(v is True for v in verdicts):
+        return ComponentCheckResult(status=ComponentCheckStatus.IN_RANGE, matches=matches)
+    if any(v is None for v in verdicts):
+        return ComponentCheckResult(status=ComponentCheckStatus.INCONCLUSIVE, matches=matches)
+    return ComponentCheckResult(status=ComponentCheckStatus.OUT_OF_RANGE, matches=matches)

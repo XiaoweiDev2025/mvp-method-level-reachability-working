@@ -9,6 +9,7 @@
       "seed_method": "org.apache.commons.text.StringSubstitutor.replace",
       "evidence_level": 2,
       "evidence_summary": {
+        "component_check_status": "in_range",
         "dependency_match": true,
         "static_reachable": false,
         "runtime_observed": false,

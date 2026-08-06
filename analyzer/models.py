@@ -41,31 +41,63 @@ class RuntimeReachability(str, Enum):
     NOT_RUN      = "not_run"        # Runtime collection was not executed
 
 
+class ComponentCheckStatus(str, Enum):
+    """
+    Outcome of component_check.py::check_component_present() -- a metadata-based
+    check of whether the seed's vulnerable component appears, at an affected
+    version, among the JARs supplied to the pipeline. Deliberately three-valued
+    rather than a present/absent boolean, since "no matching coordinates found"
+    and "matching coordinates found, confirmed outside the vulnerable range" are
+    different claims with different confidence, and must not be collapsed into one.
+    """
+    IN_RANGE     = "in_range"     # a matching JAR was found at a version inside vulnerable_range
+    OUT_OF_RANGE = "out_of_range" # every matching JAR found was confirmed outside vulnerable_range
+    INCONCLUSIVE = "inconclusive" # no matching JAR found, or a matching JAR's version could not
+                                   # be confidently compared -- never treated as evidence of absence
+
+
 class EvidenceLevel(int, Enum):
     """
-    L0–L5 evidence ladder. Each level is a necessary (but not sufficient)
-    condition for the next: reaching a given level presupposes every
-    earlier level was legitimately established first, not merely that
-    comparable evidence happens to exist.
+    L0-L5 evidence states, grouped into three kinds rather than one single
+    cumulative chain:
 
-    In the common case, higher levels do correspond to stronger evidence
-    of exploitability, but this is not a strict guarantee. A finding can
-    only be assigned a level consistent with the order in which its
-    evidence was actually established, so a NOT_REACHABLE finding stays
-    at L2 even when directly contradicted by a positive runtime
-    observation (see fusion.py's NOT_REACHABLE+OBSERVED branch) -- runtime
-    evidence without a preceding static path cannot be certified as having
-    passed through L3. evidence_level therefore records which stage of the
-    required sequence produced a finding, not by itself how much concern
-    it warrants; that judgment is carried by the decision, confidence, and
-    risk_score fields, not by this enum alone.
+    - L0-L2 are scope-and-prerequisite facts: a CVE exists; a metadata-based
+      component check has been run against the supplied JARs; a specific
+      vulnerable method has been validated. These are not a dependency chain
+      on each other -- L2's seed identification is CVE-global knowledge,
+      established independently of any specific project's L1 outcome, and the
+      pipeline reaches L2 regardless of whether L1 comes back IN_RANGE or
+      INCONCLUSIVE (see ComponentCheckStatus above; only a confirmed
+      OUT_OF_RANGE result short-circuits before L2 is reached).
+    - L3-L4 are application-specific automated evidence, and this half
+      genuinely is cumulative: L3 (STATIC_REACHABLE) presupposes a validated
+      seed method to search a call path for, and L4 additionally requires L3
+      to already hold -- a positive runtime observation without a preceding
+      static path does not, by itself, reach L4 (see fusion.py's
+      NOT_REACHABLE+OBSERVED branch).
+    - L5 is a human-review overlay that can be applied to a finding at any of
+      the preceding levels, not a further automated observation.
+
+    Higher levels do tend to correspond to stronger evidence, but this is not
+    a strict guarantee even within the cumulative L3-L4 half: a finding can
+    only be assigned a level consistent with how its evidence was actually
+    established, so a NOT_REACHABLE finding stays at L2 even when directly
+    contradicted by a positive runtime observation. evidence_level therefore
+    records which state was established, not how much concern a finding
+    warrants: decision and risk_score carry the resulting prioritisation, and
+    confidence records how strong the supporting evidence is -- related but
+    distinct judgments, not interchangeable with evidence_level or with each
+    other.
     """
-    L0_CVE_EXISTS       = 0  # CVE alert exists for a dependency version
-    L1_COMPONENT_PRESENT = 1  # Vulnerable package is in the dependency tree
-    L2_SEED_IDENTIFIED  = 2  # Vulnerable method has been identified (seed confirmed)
-    L3_STATIC_REACHABLE = 3  # Static call graph shows path to seed method
-    L4_RUNTIME_OBSERVED = 4  # Seed method was observed during runtime execution
-    L5_AUDITED          = 5  # Human review has confirmed or closed the finding
+    L0_CVE_EXISTS                  = 0  # A public CVE record exists for the vulnerability
+    L1_COMPONENT_ASSESSED          = 1  # A metadata-based component-version check has been run
+                                         # against the supplied JARs; does not by itself mean an
+                                         # affected version was found -- see ComponentCheckStatus
+    L2_SEED_IDENTIFIED             = 2  # Vulnerable method has been identified (seed confirmed)
+    L3_STATIC_REACHABLE            = 3  # Static call graph shows path to seed method
+    L4_STATIC_RUNTIME_CORROBORATED = 4  # Static reachability and a matching runtime
+                                         # observation both hold
+    L5_AUDITED                     = 5  # Human review has confirmed or closed the finding
 
 
 class Decision(str, Enum):
@@ -160,6 +192,12 @@ class EvidenceChain:
     seed_method: str            # Full signature of the seed method
 
     evidence_level: EvidenceLevel
+    component_check_status: Optional[str] = None  # ComponentCheckStatus.value ("in_range" /
+                                                    # "out_of_range" / "inconclusive"), set by
+                                                    # every assess_cve() call -- not just the
+                                                    # OUT_OF_RANGE short-circuit -- so the L1
+                                                    # outcome is never silently discarded once
+                                                    # analysis proceeds past it. See fusion.py.
     static_evidence: Optional[StaticEvidence] = None
     runtime_evidence: Optional[RuntimeEvidence] = None
 
@@ -183,7 +221,8 @@ class EvidenceChain:
             "seed_method": self.seed_method,
             "evidence_level": self.evidence_level.value,
             "evidence_summary": {
-                "dependency_match": True,
+                "component_check_status": self.component_check_status,
+                "dependency_match": self.component_check_status != "out_of_range",
                 "static_reachable": se.status.value == "reachable" if se else False,
                 "runtime_observed": rt.status.value == "observed" if rt else False,
                 "entry_points": se.entry_points_used if se else [],

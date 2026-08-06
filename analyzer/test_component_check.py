@@ -1,6 +1,6 @@
 """
-Unit tests for component_check.py's version comparison, range matching, and
-pom.properties extraction.
+Unit tests for component_check.py's version comparison, range matching,
+pom.properties extraction, and multi-JAR aggregation.
 
 Run from the project root:
     python analyzer/test_component_check.py
@@ -19,6 +19,7 @@ from component_check import (
     _version_satisfies_range,
     check_component_present,
 )
+from models import ComponentCheckStatus
 from seed_loader import SeedPackage
 
 
@@ -34,13 +35,25 @@ def test_compare_versions():
         ("2.7", "2.7-beta1", 1),    # missing trailing qualifier sorts higher
         ("2.0-beta9", "2.0", -1),   # qualifier segment sorts below no qualifier
         ("1.10.0", "1.9.0", 1),     # numeric compare, not lexicographic
+        ("2.0-beta2", "2.0-beta10", -1),  # same-prefix qualifier compared numerically, not lexically
     ]
     for a, b, expected in cases:
         got = _compare_versions(a, b)
-        # normalise to sign for the strict >1 cases above
         got_sign = (got > 0) - (got < 0)
         assert got_sign == expected, f"_compare_versions({a!r}, {b!r}) = {got}, expected sign {expected}"
         print(f"  _compare_versions({a!r}, {b!r}) -> {got_sign} (OK)")
+
+    # Cross-qualifier-prefix and unparseable comparisons must fail open (None),
+    # not silently guess via lexical string order.
+    ambiguous_cases = [
+        ("2.0-beta9", "2.0-rc1"),    # different qualifier prefixes -- Maven's
+                                      # own ordering table is not implemented
+        ("1.0+build5", "1.0.0"),     # '+' is outside the supported token shape
+    ]
+    for a, b in ambiguous_cases:
+        got = _compare_versions(a, b)
+        assert got is None, f"_compare_versions({a!r}, {b!r}) = {got}, expected None (ambiguous)"
+        print(f"  _compare_versions({a!r}, {b!r}) -> None (ambiguous, OK)")
     print("  PASS")
 
 
@@ -62,6 +75,12 @@ def test_version_satisfies_range():
         got = _version_satisfies_range(version, range_str)
         assert got == expected, f"_version_satisfies_range({version!r}, {range_str!r}) = {got}, expected {expected}"
         print(f"  _version_satisfies_range({version!r}, {range_str!r}) -> {got} (OK)")
+
+    # An unparseable/ambiguous version must fail open to None (inconclusive),
+    # never silently resolve to True or False.
+    got = _version_satisfies_range("2.0-rc1", ">=2.0-beta9,<2.15.0")
+    assert got is None, f"expected None (ambiguous qualifier comparison), got {got}"
+    print(f"  _version_satisfies_range('2.0-rc1', '>=2.0-beta9,<2.15.0') -> None (ambiguous, OK)")
     print("  PASS")
 
 
@@ -98,26 +117,54 @@ def test_read_pom_properties_and_check_component_present():
             fixed_version="2.15.0",
         )
 
-        # Vulnerable version present -> checked, in_range True
+        # Vulnerable version present -> IN_RANGE
         result = check_component_present([unrelated_jar, vulnerable_jar], seed_package)
-        assert result.checked is True
+        assert result.status == ComponentCheckStatus.IN_RANGE
         assert result.found_version == "2.14.1"
-        assert result.in_range is True
         assert result.jar_path == vulnerable_jar
-        print(f"  check_component_present([...vulnerable_jar]) -> checked={result.checked} in_range={result.in_range} (OK)")
+        print(f"  check_component_present([...vulnerable_jar]) -> status={result.status.value} (OK)")
 
-        # Safe version present -> checked, in_range False (the L1 short-circuit case)
+        # Safe version present -> OUT_OF_RANGE (the L1 short-circuit case)
         result = check_component_present([unrelated_jar, safe_jar], seed_package)
-        assert result.checked is True
+        assert result.status == ComponentCheckStatus.OUT_OF_RANGE
         assert result.found_version == "2.17.1"
-        assert result.in_range is False
-        print(f"  check_component_present([...safe_jar]) -> checked={result.checked} in_range={result.in_range} (OK)")
+        print(f"  check_component_present([...safe_jar]) -> status={result.status.value} (OK)")
 
-        # No matching JAR at all -> not checked (inconclusive, must NOT claim absence)
+        # No matching JAR at all -> INCONCLUSIVE (must NOT claim absence)
         result = check_component_present([unrelated_jar], seed_package)
-        assert result.checked is False
-        assert result.in_range is None
-        print(f"  check_component_present([unrelated_jar only]) -> checked={result.checked} (OK)")
+        assert result.status == ComponentCheckStatus.INCONCLUSIVE
+        assert result.matches == []
+        print(f"  check_component_present([unrelated_jar only]) -> status={result.status.value} (OK)")
+
+        # Both a vulnerable AND a safe copy on the classpath (e.g. a patched
+        # direct dependency alongside an old vendored copy in another JAR):
+        # must resolve IN_RANGE, not short-circuit on whichever is found first.
+        # _iter_jars sorts directory contents but here we pass an explicit
+        # list, so check both orderings.
+        result = check_component_present([safe_jar, vulnerable_jar], seed_package)
+        assert result.status == ComponentCheckStatus.IN_RANGE, \
+            "a genuinely vulnerable copy elsewhere on the classpath must not be masked by a safe one found first"
+        assert len(result.matches) == 2
+        print(f"  check_component_present([safe_jar, vulnerable_jar]) -> status={result.status.value}, "
+              f"{len(result.matches)} matches (OK)")
+
+        result = check_component_present([vulnerable_jar, safe_jar], seed_package)
+        assert result.status == ComponentCheckStatus.IN_RANGE
+        print(f"  check_component_present([vulnerable_jar, safe_jar]) -> status={result.status.value} (OK)")
+
+        # A matching JAR whose version can't be confidently compared must
+        # push the whole result to INCONCLUSIVE, not silently resolve either way.
+        ambiguous_jar = _make_jar(tmp_dir, "log4j-core-2.0-rc1.jar", "org.apache.logging.log4j", "log4j-core", "2.0-rc1")
+        seed_with_qualifier_range = SeedPackage(
+            group_id="org.apache.logging.log4j",
+            artifact_id="log4j-core",
+            vulnerable_range=">=2.0-beta9,<2.15.0",
+            fixed_version="2.15.0",
+        )
+        result = check_component_present([ambiguous_jar], seed_with_qualifier_range)
+        assert result.status == ComponentCheckStatus.INCONCLUSIVE
+        assert len(result.matches) == 1
+        print(f"  check_component_present([ambiguous_jar]) -> status={result.status.value} (OK)")
 
     print("  PASS")
 

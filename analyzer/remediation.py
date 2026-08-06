@@ -45,21 +45,21 @@ _RUNTIME_ONLY_POSITIVE_NOTE = (
 )
 
 _COMPONENT_ABSENT_NOTE = (
-    "Dependency check found this component at a version outside the seed's "
-    "vulnerable range. Static and runtime analysis were not run -- there is no "
-    "reachability question to ask about a component version this project does "
-    "not depend on."
+    "Component check found every matching JAR at a version outside the seed's "
+    "vulnerable range. Static and runtime analysis were not run for this seeded "
+    "vulnerability, but this metadata-based check does not exclude repackaged "
+    "or relocated copies of the vulnerable code under different coordinates."
 )
 
 
 def _is_component_confirmed_absent(chain: EvidenceChain) -> bool:
     """
     True for the L1 short-circuit produced by fusion.fuse_component_absent():
-    the project's own dependency JARs were checked and found not to carry a
-    vulnerable version of the seed's component at all, so static_evidence and
-    runtime_evidence are both None by construction (see fusion.py).
+    every supplied JAR carrying the seed's component coordinates was checked
+    and confirmed at a version outside the vulnerable range, so static_evidence
+    and runtime_evidence are both None by construction (see fusion.py).
     """
-    return chain.evidence_level == EvidenceLevel.L1_COMPONENT_PRESENT
+    return chain.evidence_level == EvidenceLevel.L1_COMPONENT_ASSESSED
 
 
 def _is_static_runtime_conflict(chain: EvidenceChain) -> bool:

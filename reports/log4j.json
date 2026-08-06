@@ -9,6 +9,7 @@
       "seed_method": "org.codehaus.plexus.archiver.AbstractUnArchiver.extractFile(Ljava/io/File;Ljava/io/File;Ljava/io/InputStream;Ljava/lang/String;Ljava/util/Date;ZLjava/lang/Integer;Ljava/lang/String;)V",
       "evidence_level": 2,
       "evidence_summary": {
+        "component_check_status": "inconclusive",
         "dependency_match": true,
         "static_reachable": false,
         "runtime_observed": false,
@@ -72,6 +73,7 @@
       "seed_method": "org.apache.commons.io.FilenameUtils.getPrefixLength(Ljava/lang/String;)I",
       "evidence_level": 2,
       "evidence_summary": {
+        "component_check_status": "inconclusive",
         "dependency_match": true,
         "static_reachable": false,
         "runtime_observed": false,
@@ -135,6 +137,7 @@
       "seed_method": "org.apache.logging.log4j.core.lookup.JndiLookup.lookup(Lorg/apache/logging/log4j/core/LogEvent;Ljava/lang/String;)Ljava/lang/String;",
       "evidence_level": 4,
       "evidence_summary": {
+        "component_check_status": "in_range",
         "dependency_match": true,
         "static_reachable": true,
         "runtime_observed": true,
@@ -162,7 +165,7 @@
           "org.apache.logging.log4j.spi.AbstractLogger.logMessageTrackRecursion(Ljava/lang/String;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
           "org.apache.logging.log4j.spi.AbstractLogger.tryLogMessage(Ljava/lang/String;Ljava/lang/StackTraceElement;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
           "org.apache.logging.log4j.core.Logger.log(Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/Marker;Ljava/lang/String;Ljava/lang/StackTraceElement;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
-          "org.apache.logging.log4j.core.config.DefaultReliabilityStrategy.log(Lorg/apache/logging/log4j/util/Supplier;Ljava/lang/String;Ljava/lang/String;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
+          "org.apache.logging.log4j.core.config.LockingReliabilityStrategy.log(Lorg/apache/logging/log4j/util/Supplier;Ljava/lang/String;Ljava/lang/String;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
           "org.apache.logging.log4j.core.config.LoggerConfig.log(Ljava/lang/String;Ljava/lang/String;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
           "org.apache.logging.log4j.core.lookup.StrSubstitutor.replace(Lorg/apache/logging/log4j/core/LogEvent;Ljava/lang/String;)Ljava/lang/String;",
           "org.apache.logging.log4j.core.lookup.StrSubstitutor.substitute(Lorg/apache/logging/log4j/core/LogEvent;Ljava/lang/StringBuilder;II)Z",
@@ -204,8 +207,8 @@
             "edge_type": "CHA_EXPANSION[org.apache.logging.log4j.spi.AbstractLogger->org.apache.logging.log4j.core.Logger]"
           },
           {
-            "sig": "org.apache.logging.log4j.core.config.DefaultReliabilityStrategy.log(Lorg/apache/logging/log4j/util/Supplier;Ljava/lang/String;Ljava/lang/String;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
-            "edge_type": "CHA_EXPANSION[org.apache.logging.log4j.core.config.ReliabilityStrategy->org.apache.logging.log4j.core.config.DefaultReliabilityStrategy]"
+            "sig": "org.apache.logging.log4j.core.config.LockingReliabilityStrategy.log(Lorg/apache/logging/log4j/util/Supplier;Ljava/lang/String;Ljava/lang/String;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
+            "edge_type": "CHA_EXPANSION[org.apache.logging.log4j.core.config.ReliabilityStrategy->org.apache.logging.log4j.core.config.LockingReliabilityStrategy]"
           },
           {
             "sig": "org.apache.logging.log4j.core.config.LoggerConfig.log(Ljava/lang/String;Ljava/lang/String;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
@@ -273,6 +276,7 @@
       "seed_method": "org.apache.commons.text.StringSubstitutor.replace",
       "evidence_level": 2,
       "evidence_summary": {
+        "component_check_status": "inconclusive",
         "dependency_match": true,
         "static_reachable": false,
         "runtime_observed": false,

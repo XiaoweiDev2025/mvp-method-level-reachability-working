@@ -13,9 +13,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from component_check import ComponentPresenceResult
+from component_check import ComponentCheckResult
 from fusion import fuse, fuse_component_absent
 from models import (
+    ComponentCheckStatus,
     Decision,
     EvidenceLevel,
     RuntimeEvidence,
@@ -162,7 +163,7 @@ def test_all_decide_branches():
         "static REACHABLE, runtime OBSERVED",
         static=StaticEvidence(status=StaticReachability.REACHABLE, confidence=0.9),
         runtime=RuntimeEvidence(status=RuntimeReachability.OBSERVED, confidence=0.95),
-        expected_level=EvidenceLevel.L4_RUNTIME_OBSERVED,
+        expected_level=EvidenceLevel.L4_STATIC_RUNTIME_CORROBORATED,
         expected_decision=Decision.AFFECTED,
         expected_confidence=min(0.9, 0.95),
         expected_risk=10.0,
@@ -190,11 +191,9 @@ def test_fuse_component_absent():
     print("Test: fusion.fuse_component_absent() -- L1 short-circuit")
     print("=" * 70)
 
-    component = ComponentPresenceResult(
-        checked=True,
-        found_version="2.17.1",
-        in_range=False,
-        jar_path=Path("log4j-core-2.17.1.jar"),
+    component = ComponentCheckResult(
+        status=ComponentCheckStatus.OUT_OF_RANGE,
+        matches=[(Path("log4j-core-2.17.1.jar"), "2.17.1")],
     )
     chain = fuse_component_absent(
         cve=CVE, project_artifact=PROJECT, seed=SEED, component=component,
@@ -202,7 +201,7 @@ def test_fuse_component_absent():
     print(f"  level={chain.evidence_level.value} decision={chain.decision.value} "
           f"conf={chain.decision_confidence} risk={chain.risk_score}")
 
-    assert chain.evidence_level == EvidenceLevel.L1_COMPONENT_PRESENT, chain.evidence_level
+    assert chain.evidence_level == EvidenceLevel.L1_COMPONENT_ASSESSED, chain.evidence_level
     assert chain.decision == Decision.NOT_AFFECTED_CANDIDATE, chain.decision
     assert abs(chain.decision_confidence - 0.90) < 1e-9, chain.decision_confidence
     # CVSS_BASE[CVE] = 10.0, L1 NOT_AFFECTED_CAND. multiplier = 0.05
@@ -210,13 +209,41 @@ def test_fuse_component_absent():
     assert chain.static_evidence is None, "static analysis must be skipped on this path"
     assert chain.runtime_evidence is None, "runtime analysis must be skipped on this path"
     assert "2.17.1" in chain.notes and "outside the vulnerable range" in chain.notes
+    assert chain.component_check_status == "out_of_range", chain.component_check_status
 
     print("  PASS: L1 short-circuit produces the expected level/decision/confidence/risk, "
           "with static/runtime evidence left unset")
     return True
 
 
+def test_component_check_status_propagation():
+    """
+    component_check_status must survive on the EvidenceChain for the
+    IN_RANGE/INCONCLUSIVE cases too, not just the OUT_OF_RANGE short-circuit
+    covered by test_fuse_component_absent() -- otherwise the L1 outcome is
+    silently discarded for the overwhelming majority of findings, the exact
+    gap fuse()'s new component_status parameter closes.
+    """
+    print("=" * 70)
+    print("Test: fuse()'s component_status parameter is recorded on the chain")
+    print("=" * 70)
+
+    for status in (ComponentCheckStatus.IN_RANGE, ComponentCheckStatus.INCONCLUSIVE, None):
+        chain = fuse(
+            cve=CVE, project_artifact=PROJECT, seed=SEED,
+            static=None, runtime=None, component_status=status,
+        )
+        expected = status.value if status else None
+        assert chain.component_check_status == expected, \
+            f"component_status={status}: expected {expected!r}, got {chain.component_check_status!r}"
+        print(f"  component_status={status} -> chain.component_check_status={chain.component_check_status!r} (OK)")
+
+    print("  PASS")
+    return True
+
+
 if __name__ == "__main__":
     ok = test_all_decide_branches()
     ok = test_fuse_component_absent() and ok
+    ok = test_component_check_status_propagation() and ok
     sys.exit(0 if ok else 1)
