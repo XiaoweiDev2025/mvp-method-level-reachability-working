@@ -13,7 +13,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from fusion import fuse
+from component_check import ComponentPresenceResult
+from fusion import fuse, fuse_component_absent
 from models import (
     Decision,
     EvidenceLevel,
@@ -184,6 +185,38 @@ def test_all_decide_branches():
     return True
 
 
+def test_fuse_component_absent():
+    print("=" * 70)
+    print("Test: fusion.fuse_component_absent() -- L1 short-circuit")
+    print("=" * 70)
+
+    component = ComponentPresenceResult(
+        checked=True,
+        found_version="2.17.1",
+        in_range=False,
+        jar_path=Path("log4j-core-2.17.1.jar"),
+    )
+    chain = fuse_component_absent(
+        cve=CVE, project_artifact=PROJECT, seed=SEED, component=component,
+    )
+    print(f"  level={chain.evidence_level.value} decision={chain.decision.value} "
+          f"conf={chain.decision_confidence} risk={chain.risk_score}")
+
+    assert chain.evidence_level == EvidenceLevel.L1_COMPONENT_PRESENT, chain.evidence_level
+    assert chain.decision == Decision.NOT_AFFECTED_CANDIDATE, chain.decision
+    assert abs(chain.decision_confidence - 0.90) < 1e-9, chain.decision_confidence
+    # CVSS_BASE[CVE] = 10.0, L1 NOT_AFFECTED_CAND. multiplier = 0.05
+    assert abs(chain.risk_score - 0.5) < 1e-9, chain.risk_score
+    assert chain.static_evidence is None, "static analysis must be skipped on this path"
+    assert chain.runtime_evidence is None, "runtime analysis must be skipped on this path"
+    assert "2.17.1" in chain.notes and "outside the vulnerable range" in chain.notes
+
+    print("  PASS: L1 short-circuit produces the expected level/decision/confidence/risk, "
+          "with static/runtime evidence left unset")
+    return True
+
+
 if __name__ == "__main__":
     ok = test_all_decide_branches()
+    ok = test_fuse_component_absent() and ok
     sys.exit(0 if ok else 1)

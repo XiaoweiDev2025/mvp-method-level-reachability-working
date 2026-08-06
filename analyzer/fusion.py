@@ -12,6 +12,21 @@ Design principle: NEVER discard evidence. Both static and runtime results
 are preserved in the EvidenceChain. The decision is a transparent function
 of the evidence, not a black box.
 
+L1 component-presence check (fuse_component_absent, called separately from
+_decide() below): before static/runtime analysis runs at all, pipeline.py
+checks whether the analysed project's own JARs actually contain the seed's
+vulnerable_component at a version inside vulnerable_range (component_check.py,
+reading each JAR's own embedded Maven coordinates). A seed only records which
+package and version range a CVE affects in general; it does not by itself
+establish that *this* project depends on an affected version. When that check
+positively confirms the version is out of range, fuse_component_absent()
+short-circuits straight to a L1 NOT_AFFECTED_CANDIDATE finding and static/
+runtime analysis is skipped -- there is no reachability question to ask about
+a component version the project does not depend on. When the check is
+inconclusive (no matching JAR found, e.g. a non-Maven build or a shaded JAR
+with its coordinate metadata stripped) or confirms the version is in range,
+analysis proceeds exactly as before through _decide() below.
+
 Decision rules (applied in priority order):
   1. Static=REACHABLE + Runtime=OBSERVED      → L4  AFFECTED            conf=0.95
   2. Static=REACHABLE + Runtime=NOT_OBSERVED  → L3  LIKELY_AFFECTED     conf=0.75
@@ -41,6 +56,7 @@ Reachability-adjusted exposure score: base_cvss × evidence_multiplier
   L3 LIKELY_AFFECTED:     CVSS × 0.75
   L2 NOT_AFFECTED_CAND.:  CVSS × 0.10
   L2 UNDER_INVESTIGATION: CVSS × 0.50
+  L1 NOT_AFFECTED_CAND.:  CVSS × 0.05
 
 Evidence multipliers are design parameters, not natural laws.
 The 0.10 residual for NOT_REACHABLE reflects two sources of analysis
@@ -49,6 +65,16 @@ invokedynamic, and dynamic class loading are not modelled; (2) code
 evolves — a method unreachable today may become reachable after a
 refactor. The specific value 0.10 is conservative and should be
 calibrated against a labelled exploit dataset in future work.
+
+The 0.05 residual for a confirmed-absent component (L1) is lower than the
+0.10 NOT_REACHABLE residual because it reflects a narrower source of
+uncertainty: the version comparator in component_check.py is a deliberately
+narrow implementation, not a full Maven ComparableVersion algorithm, and only
+the first matching JAR found is checked, so a second, independently-vendored
+or shaded copy of the vulnerable code under different coordinates would not
+be detected. It is not 0.00 because "the version we found is out of range"
+is not the same claim as "no copy of the vulnerable code exists anywhere in
+this build."
 
 L5 AUDITED findings no longer map to a static/runtime evidence tier, so
 their risk_score is recomputed from DECISION_BASE_MULTIPLIER (keyed by
@@ -63,6 +89,7 @@ import hashlib
 from pathlib import Path
 from typing import Optional
 
+from component_check import ComponentPresenceResult
 from models import (
     Decision,
     EvidenceChain,
@@ -101,6 +128,7 @@ _EVIDENCE_MULTIPLIER: dict[tuple[str, str], float] = {
     ("under_investigation",    "3"): 0.50,
     ("under_investigation",    "2"): 0.50,
     ("not_affected_candidate", "2"): 0.10,
+    ("not_affected_candidate", "1"): 0.05,
 }
 
 # Fallback multiplier keyed by decision alone (not evidence level). Used whenever
@@ -181,6 +209,56 @@ def fuse(
         evidence_level=level,
         static_evidence=static,
         runtime_evidence=runtime,
+        decision=decision,
+        decision_confidence=confidence,
+        risk_score=risk_score,
+        notes=notes,
+    )
+
+
+def fuse_component_absent(
+    cve: str,
+    project_artifact: str,
+    seed: Seed,
+    component: ComponentPresenceResult,
+) -> EvidenceChain:
+    """
+    Short-circuit fusion for a component confirmed absent at a vulnerable
+    version: component_check.py read the project's own JARs and found
+    seed.package's group_id:artifact_id at a version outside
+    seed.package.vulnerable_range. Static and runtime analysis are skipped
+    entirely -- there is no reachability question to ask about a component
+    version this project does not depend on. Caller is responsible for only
+    invoking this when component.checked and component.in_range is False;
+    see this module's own docstring for the inconclusive/in-range cases,
+    which proceed through fuse()/_decide() as before.
+    """
+    level = EvidenceLevel.L1_COMPONENT_PRESENT
+    decision = Decision.NOT_AFFECTED_CANDIDATE
+    confidence = 0.90
+
+    base_cvss = CVSS_BASE.get(cve, DEFAULT_CVSS)
+    multiplier = _risk_multiplier(decision, level)
+    risk_score = round(base_cvss * multiplier, 1)
+
+    jar_name = component.jar_path.name if component.jar_path else "?"
+    notes = (
+        f"Component check: {seed.package.coordinates} found at version "
+        f"{component.found_version} in {jar_name}, outside the vulnerable "
+        f"range {seed.package.vulnerable_range}. Static/runtime analysis "
+        "skipped -- this project does not depend on a vulnerable version of "
+        "this component."
+    )
+
+    return EvidenceChain(
+        chain_id=f"{cve}::{project_artifact}",
+        cve=cve,
+        project_artifact=project_artifact,
+        vulnerable_component=f"{seed.package.group_id}:{seed.package.artifact_id}:{seed.package.vulnerable_range}",
+        seed_method=seed.primary_method.full_signature,
+        evidence_level=level,
+        static_evidence=None,
+        runtime_evidence=None,
         decision=decision,
         decision_confidence=confidence,
         risk_score=risk_score,

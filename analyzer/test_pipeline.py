@@ -15,11 +15,14 @@ Run:
 
 import json
 import sys
+import tempfile
+import zipfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
 from fusion import fuse
+from pipeline import assess_cve
 from remediation import build_remediation
 from runtime_analyzer import analyze_traces
 from seed_loader import load_seed
@@ -94,6 +97,61 @@ def run_pipeline(cve_id: str, project_artifact: str) -> dict:
     return result
 
 
+def test_assess_cve_l1_short_circuit():
+    """
+    pipeline.py::assess_cve() integration test: a project whose only log4j-core
+    JAR is at a patched version (2.17.1, outside CVE-2021-44228's vulnerable_range)
+    must short-circuit to the L1 NOT_AFFECTED_CANDIDATE finding from
+    fusion.fuse_component_absent(), with static/runtime analysis never invoked.
+    A StaticAnalyzer pointed at a non-existent extractor JAR is passed
+    deliberately: if the short-circuit didn't fire, analyzer.analyze() would
+    try to run it and fail loudly, rather than this test silently passing for
+    the wrong reason.
+    """
+    print(f"\n{'=' * 62}")
+    print("Pipeline: CVE-2021-44228 <- project with only a patched log4j-core")
+    print(f"{'=' * 62}")
+
+    seed = load_seed(SEEDS_DIR / "CVE-2021-44228.yaml")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        patched_jar = Path(tmp) / "log4j-core-2.17.1.jar"
+        with zipfile.ZipFile(patched_jar, "w") as z:
+            z.writestr(
+                "META-INF/maven/org.apache.logging.log4j/log4j-core/pom.properties",
+                "groupId=org.apache.logging.log4j\nartifactId=log4j-core\nversion=2.17.1\n",
+            )
+
+        chain, advice = assess_cve(
+            cve_id              = "CVE-2021-44228",
+            seed                = seed,
+            project_jars        = [patched_jar],
+            project_artifact    = "com.example:patched-app:1.0",
+            analyzer            = StaticAnalyzer(Path("/nonexistent/extractor.jar")),
+            callgraph_cache     = None,
+            trace_log           = None,
+            project_prefix      = "com.example",
+        )
+
+    print(f"  level={chain.evidence_level.name} ({chain.evidence_level.value})  "
+          f"decision={chain.decision.value}  conf={chain.decision_confidence}  "
+          f"risk={chain.risk_score}")
+    print(f"  notes: {chain.notes}")
+    print(f"  remedy: {advice.priority} -- {advice.notes}")
+
+    assert chain.evidence_level.value == 1, f"Expected L1, got {chain.evidence_level.value}"
+    assert chain.decision.value == "not_affected_candidate", chain.decision.value
+    assert chain.static_evidence is None, "static analysis must have been skipped"
+    assert chain.runtime_evidence is None, "runtime analysis must have been skipped"
+    assert chain.risk_score == 0.5, f"Expected 0.5 (10.0 CVSS x 0.05 L1 multiplier), got {chain.risk_score}"
+    assert "2.17.1" in chain.notes
+    assert advice.priority == "MONITOR", advice.priority
+    assert "outside" in advice.notes.lower()
+
+    print("\n  ALL ASSERTIONS PASSED")
+    return True
+
+
 def main():
     result = run_pipeline(
         cve_id           = "CVE-2021-44228",
@@ -136,4 +194,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+    test_assess_cve_l1_short_circuit()
     sys.exit(0)

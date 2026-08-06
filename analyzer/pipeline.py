@@ -24,7 +24,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from fusion import fuse
+from component_check import check_component_present
+from fusion import fuse, fuse_component_absent
 from models import EvidenceChain
 from remediation import RemediationAdvice, build_remediation
 from runtime_analyzer import analyze_traces
@@ -50,6 +51,24 @@ def assess_cve(
     extra_entry_points: list[str] | None = None,
 ) -> tuple[EvidenceChain, RemediationAdvice]:
     vm = seed.primary_method
+
+    # L1: does this project's own dependency set actually contain the seed's
+    # vulnerable component, at a version inside its vulnerable_range? A seed
+    # only records which package/range a CVE affects in general; it says
+    # nothing about whether *this* project depends on an affected version.
+    # Only a positive, confirmed-out-of-range result short-circuits here --
+    # an inconclusive check (no matching JAR found) falls through to static
+    # analysis rather than claiming a confident absence on missing metadata.
+    component = check_component_present(project_jars, seed.package)
+    if component.checked and component.in_range is False:
+        chain = fuse_component_absent(
+            cve=cve_id,
+            project_artifact=project_artifact,
+            seed=seed,
+            component=component,
+        )
+        advice = build_remediation(chain, seed, project_prefix or "")
+        return chain, advice
 
     # Static analysis
     static_ev = analyzer.analyze(

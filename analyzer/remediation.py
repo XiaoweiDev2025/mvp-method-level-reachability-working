@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from models import Decision, EvidenceChain, RuntimeReachability, StaticReachability
+from models import Decision, EvidenceChain, EvidenceLevel, RuntimeReachability, StaticReachability
 from seed_loader import Seed
 
 _PRIORITY_MAP = {
@@ -43,6 +43,23 @@ _RUNTIME_ONLY_POSITIVE_NOTE = (
     "entry points could be identified), but the seed method was observed executing "
     "at runtime. Treat as a confirmed-execution signal, not an absence of risk."
 )
+
+_COMPONENT_ABSENT_NOTE = (
+    "Dependency check found this component at a version outside the seed's "
+    "vulnerable range. Static and runtime analysis were not run -- there is no "
+    "reachability question to ask about a component version this project does "
+    "not depend on."
+)
+
+
+def _is_component_confirmed_absent(chain: EvidenceChain) -> bool:
+    """
+    True for the L1 short-circuit produced by fusion.fuse_component_absent():
+    the project's own dependency JARs were checked and found not to carry a
+    vulnerable version of the seed's component at all, so static_evidence and
+    runtime_evidence are both None by construction (see fusion.py).
+    """
+    return chain.evidence_level == EvidenceLevel.L1_COMPONENT_PRESENT
 
 
 def _is_static_runtime_conflict(chain: EvidenceChain) -> bool:
@@ -107,6 +124,7 @@ def build_remediation(
     """
     decision = chain.decision
     priority = _PRIORITY_MAP.get(decision, "MONITOR") if decision else "MONITOR"
+    component_absent = _is_component_confirmed_absent(chain)
     conflict = _is_static_runtime_conflict(chain)
     runtime_only_positive = _is_runtime_only_positive(chain)
     if conflict or runtime_only_positive:
@@ -125,7 +143,9 @@ def build_remediation(
         "to_version": seed.package.fixed_version,
     }]
 
-    if conflict:
+    if component_absent:
+        base_note = _COMPONENT_ABSENT_NOTE
+    elif conflict:
         base_note = _CONFLICT_NOTE
     elif runtime_only_positive:
         base_note = _RUNTIME_ONLY_POSITIVE_NOTE
