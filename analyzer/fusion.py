@@ -22,8 +22,19 @@ Decision rules (applied in priority order):
      since this signals a static-model blind spot, most likely reflection or dynamic
      dispatch not visible to CHA+BFS.)
   5. Static=NOT_REACHABLE (runtime otherwise) → L2  NOT_AFFECTED_CAND.  conf=0.70
-  6. Static=UNKNOWN                           → L2  UNDER_INVESTIGATION conf=0.50
-  7. No static evidence at all                → L2  UNDER_INVESTIGATION conf=0.30
+  6a. Static=UNKNOWN + Runtime=OBSERVED       → L2  UNDER_INVESTIGATION conf=runtime.confidence*0.7
+  6b. Static=UNKNOWN (runtime otherwise)      → L2  UNDER_INVESTIGATION conf=0.50
+  7a. No static evidence + Runtime=OBSERVED   → L2  UNDER_INVESTIGATION conf=runtime.confidence*0.7
+  7b. No static evidence (runtime otherwise)  → L2  UNDER_INVESTIGATION conf=0.30
+
+  Rules 6a and 7a exist for the same reason as rule 4: a positive runtime
+  observation is never allowed to be silently dropped just because the static
+  channel was absent or inconclusive rather than actively contradictory. The
+  discount is the same 0.7 factor used in rule 4, applied to runtime.confidence
+  alone (there is no static.confidence to take a min() against — UNKNOWN carries
+  confidence 0.0, which would zero out the result if used, and None means no
+  static reading was taken at all). This is a workflow heuristic reusing an
+  already-established discount, not a separately calibrated value.
 
 Reachability-adjusted exposure score: base_cvss × evidence_multiplier
   L4 AFFECTED:            CVSS × 1.00
@@ -194,6 +205,16 @@ def _decide(
     alone is conclusive; together they approach but don't reach certainty.
     """
     if static is None:
+        if runtime is not None and runtime.status == RuntimeReachability.OBSERVED:
+            # No static reading was taken at all, but runtime directly observed
+            # the seed method executing. This positive signal must not be
+            # silently dropped just because there is no static result to
+            # compare it against -- see rules 6a/7a above.
+            return (
+                EvidenceLevel.L2_SEED_IDENTIFIED,
+                Decision.UNDER_INVESTIGATION,
+                runtime.confidence * 0.7,
+            )
         return (
             EvidenceLevel.L2_SEED_IDENTIFIED,
             Decision.UNDER_INVESTIGATION,
@@ -229,6 +250,19 @@ def _decide(
         )
 
     if s == StaticReachability.UNKNOWN:
+        if runtime is not None and runtime.status == RuntimeReachability.OBSERVED:
+            # Static analysis could not be trusted to answer the reachability
+            # question at all (no entry points found), but runtime directly
+            # observed the seed method executing. As with the static=None case
+            # above, this positive signal must not be dropped -- see rule 6a.
+            # static.confidence is 0.0 for UNKNOWN by construction, so anchoring
+            # on min(static.confidence, runtime.confidence) as rule 4 does would
+            # zero out a genuine observation; runtime.confidence alone is used.
+            return (
+                EvidenceLevel.L2_SEED_IDENTIFIED,
+                Decision.UNDER_INVESTIGATION,
+                runtime.confidence * 0.7,
+            )
         return (
             EvidenceLevel.L2_SEED_IDENTIFIED,
             Decision.UNDER_INVESTIGATION,
@@ -289,6 +323,16 @@ def _build_notes(
             "CONFLICT: static analysis found no path but the seed method executed at "
             "runtime -- static analysis may have missed a path (reflection/dynamic "
             "dispatch suspected)"
+        )
+    elif (
+        runtime is not None
+        and runtime.status == RuntimeReachability.OBSERVED
+        and (static is None or static.status == StaticReachability.UNKNOWN)
+    ):
+        parts.append(
+            "NOTE: runtime observed the seed method executing, but static analysis "
+            "was absent or inconclusive (no entry points identified); the runtime "
+            "signal is retained and discounted rather than dropped"
         )
     if not parts:
         # static and runtime are both None -- decision defaulted to

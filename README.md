@@ -170,16 +170,19 @@ Package-level scanners over-approximate: they report every (app, CVE) pair where
 |--------|---------|----------|----------------|
 | REACHABLE | OBSERVED | affected | L4 |
 | REACHABLE | NOT_OBSERVED | likely_affected | L3 |
-| REACHABLE | NOT_RUN | under_investigation | L3 |
+| REACHABLE | NOT_RUN / absent | under_investigation | L3 |
 | NOT_REACHABLE | OBSERVED | under_investigation *(static/runtime conflict — see below)* | L2 |
 | NOT_REACHABLE | NOT_OBSERVED / NOT_RUN / absent | not_affected_candidate | L2 |
-| UNKNOWN | any | under_investigation | L2 |
+| UNKNOWN | OBSERVED | under_investigation *(runtime-only positive — see below)* | L2 |
+| UNKNOWN | NOT_OBSERVED / NOT_RUN / absent | under_investigation | L2 |
+| absent | OBSERVED | under_investigation *(runtime-only positive — see below)* | L2 |
+| absent | NOT_OBSERVED / NOT_RUN / absent | under_investigation | L2 |
 
 > `REACHABLE` / `NOT_REACHABLE` are the result of the static call-graph model under the current analysis scope (see [Limitations](#limitations)), not a general claim about the deployed application's real-world exposure.
 
 **Risk score** = CVSS base score × evidence multiplier (L4 affected=1.0, L3 likely=0.75, L3/L2 under_investigation=0.50, L2 not_affected_candidate=0.10). The multiplier is keyed on (decision, evidence level) together, not on evidence level alone — both `under_investigation` and `not_affected_candidate` can appear at L2 with different multipliers, since they represent different evidence, not different levels.
 
-**Remediation priority** = URGENT (affected) / RECOMMENDED (likely_affected, and the NOT_REACHABLE+OBSERVED conflict case above) / MONITOR (others)
+**Remediation priority** = URGENT (affected) / RECOMMENDED (likely_affected, the NOT_REACHABLE+OBSERVED conflict case, and the UNKNOWN/absent+OBSERVED runtime-only-positive cases above) / MONITOR (others)
 
 ---
 
@@ -196,6 +199,8 @@ Package-level scanners over-approximate: they report every (app, CVE) pair where
 **NOT_OBSERVED != NOT_REACHABLE**: Runtime evidence only covers the execution paths taken in the test suite. `NOT_OBSERVED` means the method was not seen in the observed runs, not that it is unreachable. The OTel agent's `VersionLogger` startup line is used to distinguish `NOT_OBSERVED` (agent ran, method not called) from `NOT_RUN` (agent was not attached at all).
 
 **Static/runtime conflict detection**: if static analysis reports NOT_REACHABLE but runtime evidence shows the seed method OBSERVED executing anyway, `fusion.py` does not let the static result silently win. This combination is flagged as `under_investigation` (not `not_affected_candidate`) with an explicit `CONFLICT:` note, and `remediation.py` raises its priority to `RECOMMENDED` rather than the default `MONITOR` — because two independently-produced evidence sources actively disagreeing is itself a stronger signal that something needs review than an ordinary "haven't tested yet" finding, regardless of which of the two sources turns out to be right. Confidence for this case is `min(static.confidence, runtime.confidence) * 0.7`: neither source is assumed more trustworthy than the other going in (runtime's own confidence is itself tiered by match quality — see below — not an infallible direct measurement), so the formula anchors on whichever of the two is currently the more uncertain, then discounts further for the disagreement itself. In practice this combination is the signature of a static-model blind spot (reflection, dynamic proxy, or other dispatch invisible to CHA+BFS); see the [reflection false negative demo](#reflection-false-negative-demo-expected-not_reachable-known-analysis-limitation) below for a worked example.
+
+**Runtime-only positive evidence**: a distinct case from the conflict above — static evidence is `UNKNOWN` (no entry points could be identified) or absent entirely (no static analysis was run), but runtime still reports `OBSERVED`. Earlier versions of `fusion.py` fell through both of these branches without ever inspecting `runtime.status`, so a genuine positive runtime observation was silently discarded and the finding scored as if no evidence existed at all (confidence 0.50 or 0.30, same as if runtime had never run). This is now handled explicitly: confidence is `runtime.confidence * 0.7` (not `min(static.confidence, runtime.confidence)`, since `UNKNOWN` carries confidence 0.0 by construction and would zero out a genuine observation), `remediation.py` raises priority to `RECOMMENDED`, and the finding's notes record that runtime observed execution despite static evidence being absent or inconclusive — distinct wording from the `CONFLICT:` note above, since there is no static result here to actively disagree with.
 
 **Light CVE mapping** parses git diff hunk headers (`@@ -a,b +c,d @@ function_context`) to identify which method was modified in the fix commit. This is more reliable than scanning for `+` lines alone because the hunk header names the enclosing function even when the fix is purely additive (no removed lines).
 

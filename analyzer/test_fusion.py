@@ -74,6 +74,19 @@ def test_all_decide_branches():
         expected_risk=5.0,
     )
 
+    # 1b. No static evidence, but runtime OBSERVED the seed method executing.
+    # This positive signal must not be silently dropped just because there is
+    # no static reading to compare it against (rule 7a).
+    _check(
+        "no static evidence, runtime OBSERVED",
+        static=None,
+        runtime=RuntimeEvidence(status=RuntimeReachability.OBSERVED, confidence=0.95),
+        expected_level=EvidenceLevel.L2_SEED_IDENTIFIED,
+        expected_decision=Decision.UNDER_INVESTIGATION,
+        expected_confidence=0.95 * 0.7,
+        expected_risk=5.0,
+    )
+
     # 2. Static NOT_REACHABLE
     _check(
         "static NOT_REACHABLE",
@@ -93,6 +106,20 @@ def test_all_decide_branches():
         expected_level=EvidenceLevel.L2_SEED_IDENTIFIED,
         expected_decision=Decision.UNDER_INVESTIGATION,
         expected_confidence=0.50,
+        expected_risk=5.0,
+    )
+
+    # 3b. Static UNKNOWN, but runtime OBSERVED the seed method executing.
+    # static.confidence is 0.0 for UNKNOWN by construction, so this must be
+    # anchored on runtime.confidence alone rather than min(static, runtime)
+    # (which would zero out a genuine observation) (rule 6a).
+    _check(
+        "static UNKNOWN, runtime OBSERVED",
+        static=StaticEvidence(status=StaticReachability.UNKNOWN, confidence=0.0),
+        runtime=RuntimeEvidence(status=RuntimeReachability.OBSERVED, confidence=0.95),
+        expected_level=EvidenceLevel.L2_SEED_IDENTIFIED,
+        expected_decision=Decision.UNDER_INVESTIGATION,
+        expected_confidence=0.95 * 0.7,
         expected_risk=5.0,
     )
 
@@ -153,7 +180,7 @@ def test_all_decide_branches():
         expected_risk=5.0,
     )
 
-    print("  PASS: all 8 static/runtime combinations produced the expected level/decision/confidence/risk")
+    print("  PASS: all 10 static/runtime combinations produced the expected level/decision/confidence/risk")
     return True
 
 

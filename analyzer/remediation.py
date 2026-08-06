@@ -38,21 +38,47 @@ _CONFLICT_NOTE = (
     "suspected). Treat as a confirmed-execution signal, not an absence of risk."
 )
 
+_RUNTIME_ONLY_POSITIVE_NOTE = (
+    "Static analysis did not determine reachability (no reading was taken, or no "
+    "entry points could be identified), but the seed method was observed executing "
+    "at runtime. Treat as a confirmed-execution signal, not an absence of risk."
+)
+
 
 def _is_static_runtime_conflict(chain: EvidenceChain) -> bool:
     """
     True when static analysis found no path but runtime observed the seed method
     executing anyway -- the same conflict fusion._decide() flags as UNDER_INVESTIGATION
     rather than silently scoring as NOT_AFFECTED_CANDIDATE. This case carries direct,
-    confirmed-execution evidence, unlike the other two paths into UNDER_INVESTIGATION
-    (static REACHABLE + runtime NOT_RUN, or static UNKNOWN), which have no positive
-    evidence at all. It should not share MONITOR's "we haven't checked yet" framing.
+    confirmed-execution evidence and a specific likely cause (a static-model blind spot,
+    reflection/dynamic dispatch not modelled by CHA+BFS), distinct from the more general
+    "static had nothing to say" case handled by _is_runtime_only_positive() below.
     """
     return (
         chain.static_evidence is not None
         and chain.runtime_evidence is not None
         and chain.static_evidence.status == StaticReachability.NOT_REACHABLE
         and chain.runtime_evidence.status == RuntimeReachability.OBSERVED
+    )
+
+
+def _is_runtime_only_positive(chain: EvidenceChain) -> bool:
+    """
+    True when static evidence is absent or UNKNOWN but runtime observed the seed
+    method executing anyway -- the fusion._decide() branches added alongside the
+    NOT_REACHABLE conflict case above (see fusion.py rules 6a/7a). Unlike that
+    case, there is no static result to actively disagree with runtime here; static
+    simply never reached a conclusion. This still carries direct, confirmed-execution
+    evidence and must not be given MONITOR's "we haven't checked yet" framing, which
+    would misrepresent a positive runtime observation as an absence of evidence.
+    """
+    return (
+        chain.runtime_evidence is not None
+        and chain.runtime_evidence.status == RuntimeReachability.OBSERVED
+        and (
+            chain.static_evidence is None
+            or chain.static_evidence.status == StaticReachability.UNKNOWN
+        )
     )
 
 
@@ -82,7 +108,8 @@ def build_remediation(
     decision = chain.decision
     priority = _PRIORITY_MAP.get(decision, "MONITOR") if decision else "MONITOR"
     conflict = _is_static_runtime_conflict(chain)
-    if conflict:
+    runtime_only_positive = _is_runtime_only_positive(chain)
+    if conflict or runtime_only_positive:
         priority = "RECOMMENDED"
 
     call_path: list[str] = []
@@ -100,6 +127,8 @@ def build_remediation(
 
     if conflict:
         base_note = _CONFLICT_NOTE
+    elif runtime_only_positive:
+        base_note = _RUNTIME_ONLY_POSITIVE_NOTE
     else:
         base_note = _PRIORITY_NOTES.get(priority, "")
         if priority == "MONITOR" and decision == Decision.UNDER_INVESTIGATION:
