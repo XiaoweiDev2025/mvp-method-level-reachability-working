@@ -19,6 +19,15 @@
         "call_path_depth": 0,
         "trace_ids": []
       },
+      "component": {
+        "status": "in_range",
+        "matches": [
+          {
+            "jar": "demo-projects\\safe-text4shell-demo\\target\\dependency\\commons-text-1.9.jar",
+            "version": "1.9"
+          }
+        ]
+      },
       "static": {
         "status": "not_reachable",
         "confidence": 0.7,

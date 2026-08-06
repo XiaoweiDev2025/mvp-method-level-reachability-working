@@ -21,6 +21,15 @@
           "9d48f58cfdf37ea0f35bdbc290b2e386"
         ]
       },
+      "component": {
+        "status": "in_range",
+        "matches": [
+          {
+            "jar": "demo-projects\\reflection-log4j-demo\\target\\dependency\\log4j-core-2.14.1.jar",
+            "version": "2.14.1"
+          }
+        ]
+      },
       "static": {
         "status": "not_reachable",
         "confidence": 0.7,

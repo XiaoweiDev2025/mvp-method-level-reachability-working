@@ -19,6 +19,15 @@
         "call_path_depth": 0,
         "trace_ids": []
       },
+      "component": {
+        "status": "in_range",
+        "matches": [
+          {
+            "jar": "demo-projects\\safe-log4j-demo\\target\\dependency\\log4j-core-2.14.1.jar",
+            "version": "2.14.1"
+          }
+        ]
+      },
       "static": {
         "status": "not_reachable",
         "confidence": 0.7,

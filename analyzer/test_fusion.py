@@ -209,34 +209,47 @@ def test_fuse_component_absent():
     assert chain.static_evidence is None, "static analysis must be skipped on this path"
     assert chain.runtime_evidence is None, "runtime analysis must be skipped on this path"
     assert "2.17.1" in chain.notes and "outside the vulnerable range" in chain.notes
-    assert chain.component_check_status == "out_of_range", chain.component_check_status
+    assert chain.component_evidence.status == ComponentCheckStatus.OUT_OF_RANGE, chain.component_evidence
+    assert chain.component_evidence.matches == [("log4j-core-2.17.1.jar", "2.17.1")], chain.component_evidence.matches
 
     print("  PASS: L1 short-circuit produces the expected level/decision/confidence/risk, "
           "with static/runtime evidence left unset")
     return True
 
 
-def test_component_check_status_propagation():
+def test_component_evidence_propagation():
     """
-    component_check_status must survive on the EvidenceChain for the
-    IN_RANGE/INCONCLUSIVE cases too, not just the OUT_OF_RANGE short-circuit
-    covered by test_fuse_component_absent() -- otherwise the L1 outcome is
-    silently discarded for the overwhelming majority of findings, the exact
-    gap fuse()'s new component_status parameter closes.
+    component_evidence (status + full match list) must survive on the
+    EvidenceChain for the IN_RANGE/INCONCLUSIVE cases too, not just the
+    OUT_OF_RANGE short-circuit covered by test_fuse_component_absent() --
+    otherwise the L1 outcome, and which JAR/version produced it, is silently
+    discarded for the overwhelming majority of findings, the exact gap
+    fuse()'s component parameter closes.
     """
     print("=" * 70)
-    print("Test: fuse()'s component_status parameter is recorded on the chain")
+    print("Test: fuse()'s component parameter is recorded on the chain in full")
     print("=" * 70)
 
-    for status in (ComponentCheckStatus.IN_RANGE, ComponentCheckStatus.INCONCLUSIVE, None):
+    matches = [(Path("log4j-core-2.14.1.jar"), "2.14.1")]
+    cases = [
+        ComponentCheckResult(status=ComponentCheckStatus.IN_RANGE, matches=matches),
+        ComponentCheckResult(status=ComponentCheckStatus.INCONCLUSIVE, matches=[]),
+        None,
+    ]
+    for component in cases:
         chain = fuse(
             cve=CVE, project_artifact=PROJECT, seed=SEED,
-            static=None, runtime=None, component_status=status,
+            static=None, runtime=None, component=component,
         )
-        expected = status.value if status else None
-        assert chain.component_check_status == expected, \
-            f"component_status={status}: expected {expected!r}, got {chain.component_check_status!r}"
-        print(f"  component_status={status} -> chain.component_check_status={chain.component_check_status!r} (OK)")
+        if component is None:
+            assert chain.component_evidence is None, chain.component_evidence
+            print(f"  component=None -> chain.component_evidence=None (OK)")
+        else:
+            ce = chain.component_evidence
+            assert ce.status == component.status, (ce.status, component.status)
+            assert ce.matches == [(str(p), v) for p, v in component.matches], ce.matches
+            print(f"  component.status={component.status} -> "
+                  f"chain.component_evidence.status={ce.status}, matches={ce.matches} (OK)")
 
     print("  PASS")
     return True
@@ -245,5 +258,5 @@ def test_component_check_status_propagation():
 if __name__ == "__main__":
     ok = test_all_decide_branches()
     ok = test_fuse_component_absent() and ok
-    ok = test_component_check_status_propagation() and ok
+    ok = test_component_evidence_propagation() and ok
     sys.exit(0 if ok else 1)

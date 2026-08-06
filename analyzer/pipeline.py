@@ -91,7 +91,7 @@ def assess_cve(
         seed             = seed,
         static           = static_ev,
         runtime          = runtime_ev,
-        component_status = component.status,
+        component        = component,
     )
 
     advice = build_remediation(chain, seed, project_prefix or "")

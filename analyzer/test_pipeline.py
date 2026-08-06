@@ -145,7 +145,8 @@ def test_assess_cve_l1_short_circuit():
     assert chain.runtime_evidence is None, "runtime analysis must have been skipped"
     assert chain.risk_score == 0.5, f"Expected 0.5 (10.0 CVSS x 0.05 L1 multiplier), got {chain.risk_score}"
     assert "2.17.1" in chain.notes
-    assert chain.component_check_status == "out_of_range", chain.component_check_status
+    assert chain.component_evidence.status.value == "out_of_range", chain.component_evidence
+    assert chain.component_evidence.matches == [(str(patched_jar), "2.17.1")], chain.component_evidence.matches
     assert advice.priority == "MONITOR", advice.priority
     assert "outside" in advice.notes.lower()
 

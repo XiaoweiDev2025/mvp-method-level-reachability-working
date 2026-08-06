@@ -19,6 +19,10 @@
         "call_path_depth": 0,
         "trace_ids": []
       },
+      "component": {
+        "status": "inconclusive",
+        "matches": []
+      },
       "static": {
         "status": "not_reachable",
         "confidence": 0.7,
@@ -82,6 +86,10 @@
         ],
         "call_path_depth": 0,
         "trace_ids": []
+      },
+      "component": {
+        "status": "inconclusive",
+        "matches": []
       },
       "static": {
         "status": "not_reachable",
@@ -149,6 +157,15 @@
           "9c172e1c910d6b14fa1aee42d621b2f3"
         ]
       },
+      "component": {
+        "status": "in_range",
+        "matches": [
+          {
+            "jar": "demo-projects\\vulnerable-log4j-demo\\target\\dependency\\log4j-core-2.14.1.jar",
+            "version": "2.14.1"
+          }
+        ]
+      },
       "static": {
         "status": "reachable",
         "confidence": 0.9,
@@ -165,8 +182,8 @@
           "org.apache.logging.log4j.spi.AbstractLogger.logMessageTrackRecursion(Ljava/lang/String;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
           "org.apache.logging.log4j.spi.AbstractLogger.tryLogMessage(Ljava/lang/String;Ljava/lang/StackTraceElement;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
           "org.apache.logging.log4j.core.Logger.log(Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/Marker;Ljava/lang/String;Ljava/lang/StackTraceElement;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
-          "org.apache.logging.log4j.core.config.LockingReliabilityStrategy.log(Lorg/apache/logging/log4j/util/Supplier;Ljava/lang/String;Ljava/lang/String;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
-          "org.apache.logging.log4j.core.config.LoggerConfig.log(Ljava/lang/String;Ljava/lang/String;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
+          "org.apache.logging.log4j.core.config.AwaitUnconditionallyReliabilityStrategy.log(Lorg/apache/logging/log4j/util/Supplier;Ljava/lang/String;Ljava/lang/String;Ljava/lang/StackTraceElement;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
+          "org.apache.logging.log4j.core.config.LoggerConfig.log(Ljava/lang/String;Ljava/lang/String;Ljava/lang/StackTraceElement;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
           "org.apache.logging.log4j.core.lookup.StrSubstitutor.replace(Lorg/apache/logging/log4j/core/LogEvent;Ljava/lang/String;)Ljava/lang/String;",
           "org.apache.logging.log4j.core.lookup.StrSubstitutor.substitute(Lorg/apache/logging/log4j/core/LogEvent;Ljava/lang/StringBuilder;II)Z",
           "org.apache.logging.log4j.core.lookup.StrSubstitutor.substitute(Lorg/apache/logging/log4j/core/LogEvent;Ljava/lang/StringBuilder;IILjava/util/List;)I",
@@ -207,11 +224,11 @@
             "edge_type": "CHA_EXPANSION[org.apache.logging.log4j.spi.AbstractLogger->org.apache.logging.log4j.core.Logger]"
           },
           {
-            "sig": "org.apache.logging.log4j.core.config.LockingReliabilityStrategy.log(Lorg/apache/logging/log4j/util/Supplier;Ljava/lang/String;Ljava/lang/String;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
-            "edge_type": "CHA_EXPANSION[org.apache.logging.log4j.core.config.ReliabilityStrategy->org.apache.logging.log4j.core.config.LockingReliabilityStrategy]"
+            "sig": "org.apache.logging.log4j.core.config.AwaitUnconditionallyReliabilityStrategy.log(Lorg/apache/logging/log4j/util/Supplier;Ljava/lang/String;Ljava/lang/String;Ljava/lang/StackTraceElement;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
+            "edge_type": "CHA_EXPANSION[org.apache.logging.log4j.core.config.LocationAwareReliabilityStrategy->org.apache.logging.log4j.core.config.AwaitUnconditionallyReliabilityStrategy]"
           },
           {
-            "sig": "org.apache.logging.log4j.core.config.LoggerConfig.log(Ljava/lang/String;Ljava/lang/String;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
+            "sig": "org.apache.logging.log4j.core.config.LoggerConfig.log(Ljava/lang/String;Ljava/lang/String;Ljava/lang/StackTraceElement;Lorg/apache/logging/log4j/Marker;Lorg/apache/logging/log4j/Level;Lorg/apache/logging/log4j/message/Message;Ljava/lang/Throwable;)V",
             "edge_type": "CALL"
           },
           {
@@ -285,6 +302,10 @@
         ],
         "call_path_depth": 0,
         "trace_ids": []
+      },
+      "component": {
+        "status": "inconclusive",
+        "matches": []
       },
       "static": {
         "status": "not_reachable",

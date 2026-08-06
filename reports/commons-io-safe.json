@@ -19,6 +19,15 @@
         "call_path_depth": 0,
         "trace_ids": []
       },
+      "component": {
+        "status": "in_range",
+        "matches": [
+          {
+            "jar": "demo-projects\\safe-commons-io-demo\\target\\dependency\\commons-io-2.6.jar",
+            "version": "2.6"
+          }
+        ]
+      },
       "static": {
         "status": "not_reachable",
         "confidence": 0.7,

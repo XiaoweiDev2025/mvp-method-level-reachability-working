@@ -19,6 +19,15 @@
         "call_path_depth": 2,
         "trace_ids": []
       },
+      "component": {
+        "status": "in_range",
+        "matches": [
+          {
+            "jar": "demo-projects\\vulnerable-text4shell-demo\\target\\dependency\\commons-text-1.9.jar",
+            "version": "1.9"
+          }
+        ]
+      },
       "static": {
         "status": "reachable",
         "confidence": 0.9,

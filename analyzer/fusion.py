@@ -31,11 +31,12 @@ returns a L1 NOT_AFFECTED_CANDIDATE finding and static/runtime analysis is
 skipped, since the seed's package-and-version model makes method-level
 analysis for this seeded vulnerability unnecessary. IN_RANGE and
 INCONCLUSIVE both proceed exactly as before through _decide() below, but
-unlike an earlier version of this design, the resolved ComponentCheckStatus
-is not simply discarded once the pipeline moves past it -- fuse() records it
-on the returned EvidenceChain as component_check_status, so an IN_RANGE or
-INCONCLUSIVE result is still visible in the final report, not just the
-OUT_OF_RANGE short-circuit case. An
+unlike an earlier version of this design, the resolved status and its full
+supporting match list are not simply discarded once the pipeline moves past
+it -- fuse() records them on the returned EvidenceChain as
+component_evidence, so an IN_RANGE or INCONCLUSIVE result, and which JAR(s)
+and version(s) produced it, are still visible in the final report, not just
+the OUT_OF_RANGE short-circuit case. An
 inconclusive check is never treated as evidence of absence.
 
 Decision rules (applied in priority order):
@@ -106,6 +107,7 @@ from typing import Optional
 from component_check import ComponentCheckResult
 from models import (
     ComponentCheckStatus,
+    ComponentEvidence,
     Decision,
     EvidenceChain,
     EvidenceLevel,
@@ -185,13 +187,27 @@ def _risk_multiplier(decision: Decision, level: EvidenceLevel) -> float:
 # Core fusion function
 # ---------------------------------------------------------------------------
 
+def _to_component_evidence(component: Optional[ComponentCheckResult]) -> Optional[ComponentEvidence]:
+    """
+    Converts a component_check.py ComponentCheckResult into the ComponentEvidence
+    stored on an EvidenceChain, carrying every matching JAR/version forward
+    rather than collapsing to a bare status.
+    """
+    if component is None:
+        return None
+    return ComponentEvidence(
+        status=component.status,
+        matches=[(str(jar_path), version) for jar_path, version in component.matches],
+    )
+
+
 def fuse(
     cve: str,
     project_artifact: str,      # "group_id:artifact_id:version" of the analysed app
     seed: Seed,
     static: Optional[StaticEvidence] = None,
     runtime: Optional[RuntimeEvidence] = None,
-    component_status: Optional[ComponentCheckStatus] = None,
+    component: Optional[ComponentCheckResult] = None,
 ) -> EvidenceChain:
     """
     Combine static and runtime evidence into a complete EvidenceChain.
@@ -199,13 +215,15 @@ def fuse(
     All inputs are optional — the engine degrades gracefully:
       no static + no runtime → L2 UNDER_INVESTIGATION
 
-    component_status, when supplied, is the ComponentCheckStatus the L1 check
-    resolved to before this call was reached (always IN_RANGE or INCONCLUSIVE
-    here -- an OUT_OF_RANGE result never reaches fuse() at all, since
-    pipeline.py routes it to fuse_component_absent() instead). It is recorded
-    on the returned chain so the L1 outcome is not silently discarded once
-    analysis proceeds past it -- consistent with this module's own "never
-    discard evidence" design principle above.
+    component, when supplied, is the ComponentCheckResult the L1 check
+    resolved to before this call was reached (always status IN_RANGE or
+    INCONCLUSIVE here -- an OUT_OF_RANGE result never reaches fuse() at all,
+    since pipeline.py routes it to fuse_component_absent() instead). Its
+    status and full match list (every JAR/version the check found, not just
+    whichever one determined the outcome) are recorded on the returned chain
+    as component_evidence, so the L1 outcome and its supporting evidence are
+    not silently discarded once analysis proceeds past it -- consistent with
+    this module's own "never discard evidence" design principle above.
     """
     vm = seed.primary_method
     seed_sig = vm.full_signature
@@ -231,7 +249,7 @@ def fuse(
         vulnerable_component=f"{seed.package.group_id}:{seed.package.artifact_id}:{seed.package.vulnerable_range}",
         seed_method=seed_sig,
         evidence_level=level,
-        component_check_status=component_status.value if component_status else None,
+        component_evidence=_to_component_evidence(component),
         static_evidence=static,
         runtime_evidence=runtime,
         decision=decision,
@@ -288,7 +306,7 @@ def fuse_component_absent(
         vulnerable_component=f"{seed.package.group_id}:{seed.package.artifact_id}:{seed.package.vulnerable_range}",
         seed_method=seed.primary_method.full_signature,
         evidence_level=level,
-        component_check_status=component.status.value,
+        component_evidence=_to_component_evidence(component),
         static_evidence=None,
         runtime_evidence=None,
         decision=decision,

@@ -19,6 +19,15 @@
         "call_path_depth": 0,
         "trace_ids": []
       },
+      "component": {
+        "status": "in_range",
+        "matches": [
+          {
+            "jar": "demo-projects\\safe-plexus-demo\\target\\dependency\\plexus-archiver-3.5.jar",
+            "version": "3.5"
+          }
+        ]
+      },
       "static": {
         "status": "not_reachable",
         "confidence": 0.7,

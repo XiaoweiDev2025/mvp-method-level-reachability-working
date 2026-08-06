@@ -210,7 +210,7 @@ Package-level scanners over-approximate: they report every (app, CVE) pair where
 - **`IN_RANGE`** — at least one matching JAR's version falls inside `vulnerable_range`. Analysis proceeds exactly as before, through static/runtime analysis and `fusion.py::_decide()`.
 - **`INCONCLUSIVE`** — no JAR with matching Maven coordinates was found at all (e.g. a non-Maven build, or a shaded JAR with its coordinate metadata stripped), *or* a matching JAR's version could not be confidently compared against `vulnerable_range` (see the comparator note below). Also proceeds exactly as before. This is deliberate: neither missing metadata nor an unparseable version is the same claim as the component being absent, so an inconclusive check must never be treated as a confident negative.
 
-The resolved status is not discarded once the pipeline moves past it: `evidence_summary.component_check_status` in every report records `"in_range"`, `"out_of_range"`, or `"inconclusive"` regardless of which branch a finding took, not just the `OUT_OF_RANGE` short-circuit case — so a reviewer can always see what the L1 check actually found, even for a finding that went on to `AFFECTED` via static/runtime evidence. `evidence_summary.dependency_match` is kept as a derived boolean for backward compatibility (`true` unless `component_check_status` is exactly `"out_of_range"`).
+Neither the resolved status nor the evidence behind it is discarded once the pipeline moves past this check. Every report carries a top-level `"component"` object — `{"status": ..., "matches": [{"jar": ..., "version": ...}, ...]}` — mirroring the `"static"`/`"runtime"` objects already in the report, for every finding, not just the `OUT_OF_RANGE` short-circuit case: a reviewer can always see which JAR(s) and version(s) the L1 check actually found, even for a finding that went on to `AFFECTED` via static/runtime evidence. Earlier versions of this pipeline only attached a bare status string to the finding (nothing at all for the OUT_OF_RANGE case beyond free-text `notes`), which fell short of the full-object, fully-auditable pattern `StaticEvidence`/`RuntimeEvidence` already use. `evidence_summary.component_check_status` (a convenience copy of `component.status`) and `evidence_summary.dependency_match` (a derived boolean, `true` unless status is exactly `"out_of_range"`, kept for backward compatibility) are still present alongside the full `"component"` object.
 
 Every JAR carrying matching coordinates is checked, not just the first one found — a classpath can genuinely contain more than one version of the same component (e.g. a patched direct dependency alongside an old vendored copy bundled inside a third-party JAR), and an earlier version of this check risked a false `OUT_OF_RANGE` verdict by only inspecting the first match. The combination rule across all matches: any `IN_RANGE` match wins outright; failing that, any unparseable match forces `INCONCLUSIVE`; only when every match is confirmed out of range, with none ambiguous, does the check resolve `OUT_OF_RANGE`.
 
@@ -766,6 +766,10 @@ Each finding explains *why* the decision was reached:
         "entry_points": ["com.example.App.main(...)"],
         "call_path_depth": 15,
         "trace_ids": ["50b93a0c..."]
+      },
+      "component": {
+        "status": "in_range",
+        "matches": [{"jar": "demo-projects/vulnerable-log4j-demo/target/dependency/log4j-core-2.14.1.jar", "version": "2.14.1"}]
       },
       "static": {
         "status": "reachable",

@@ -134,6 +134,24 @@ class RuntimeEvidence:
 
 
 @dataclass
+class ComponentEvidence:
+    """
+    Result of the L1 component check (component_check.py), in the same
+    full-object-on-the-chain shape as StaticEvidence/RuntimeEvidence above,
+    rather than a bare status string. matches is the complete audit trail
+    behind status: every JAR that carried Maven coordinates matching the
+    seed's group_id:artifact_id, paired with the version found in it --
+    without this, a reviewer has no way to see *which* JAR and version
+    actually produced an IN_RANGE or INCONCLUSIVE result (the OUT_OF_RANGE
+    case's matches were already visible via free-text notes, but the other
+    two outcomes -- the majority of findings -- previously carried no
+    persisted evidence at all beyond the bare status).
+    """
+    status: ComponentCheckStatus
+    matches: list[tuple[str, str]] = field(default_factory=list)  # (jar_path, version) pairs
+
+
+@dataclass
 class AuditRecord:
     """
     Structured reviewer sign-off for L5 AUDITED evidence.
@@ -192,12 +210,12 @@ class EvidenceChain:
     seed_method: str            # Full signature of the seed method
 
     evidence_level: EvidenceLevel
-    component_check_status: Optional[str] = None  # ComponentCheckStatus.value ("in_range" /
-                                                    # "out_of_range" / "inconclusive"), set by
-                                                    # every assess_cve() call -- not just the
-                                                    # OUT_OF_RANGE short-circuit -- so the L1
-                                                    # outcome is never silently discarded once
-                                                    # analysis proceeds past it. See fusion.py.
+    component_evidence: Optional[ComponentEvidence] = None  # L1 check result -- status plus every
+                                                    # matching JAR/version, set by every assess_cve()
+                                                    # call, not just the OUT_OF_RANGE short-circuit --
+                                                    # so the L1 outcome and its supporting matches are
+                                                    # never silently discarded once analysis proceeds
+                                                    # past it. See fusion.py.
     static_evidence: Optional[StaticEvidence] = None
     runtime_evidence: Optional[RuntimeEvidence] = None
 
@@ -211,8 +229,10 @@ class EvidenceChain:
 
     def to_dict(self) -> dict:
         """Serialise to a plain dict for JSON/YAML output."""
+        ce = self.component_evidence
         se = self.static_evidence
         rt = self.runtime_evidence
+        component_status_value = ce.status.value if ce else None
         return {
             "chain_id": self.chain_id,
             "cve": self.cve,
@@ -221,14 +241,18 @@ class EvidenceChain:
             "seed_method": self.seed_method,
             "evidence_level": self.evidence_level.value,
             "evidence_summary": {
-                "component_check_status": self.component_check_status,
-                "dependency_match": self.component_check_status != "out_of_range",
+                "component_check_status": component_status_value,
+                "dependency_match": component_status_value != "out_of_range",
                 "static_reachable": se.status.value == "reachable" if se else False,
                 "runtime_observed": rt.status.value == "observed" if rt else False,
                 "entry_points": se.entry_points_used if se else [],
                 "call_path_depth": len(se.call_path) if se else 0,
                 "trace_ids": rt.trace_ids if rt else [],
             },
+            "component": {
+                "status": ce.status.value,
+                "matches": [{"jar": jar, "version": version} for jar, version in ce.matches],
+            } if ce else None,
             "static": {
                 "status": se.status.value,
                 "confidence": se.confidence,

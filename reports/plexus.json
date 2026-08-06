@@ -19,6 +19,15 @@
         "call_path_depth": 5,
         "trace_ids": []
       },
+      "component": {
+        "status": "in_range",
+        "matches": [
+          {
+            "jar": "demo-projects\\plexus-demo\\target\\dependency\\plexus-archiver-3.5.jar",
+            "version": "3.5"
+          }
+        ]
+      },
       "static": {
         "status": "reachable",
         "confidence": 0.9,
@@ -29,8 +38,8 @@
         "call_path": [
           "com.example.App.main([Ljava/lang/String;)V",
           "org.codehaus.plexus.archiver.AbstractUnArchiver.extract()V",
-          "org.codehaus.plexus.archiver.tar.TarUnArchiver.execute()V",
-          "org.codehaus.plexus.archiver.tar.TarUnArchiver.execute(Ljava/io/File;Ljava/io/File;)V",
+          "org.codehaus.plexus.archiver.zip.AbstractZipUnArchiver.execute()V",
+          "org.codehaus.plexus.archiver.zip.AbstractZipUnArchiver.extractFileIfIncluded(Ljava/io/File;Ljava/io/File;Ljava/io/InputStream;Ljava/lang/String;Ljava/util/Date;ZLjava/lang/Integer;Ljava/lang/String;)V",
           "org.codehaus.plexus.archiver.AbstractUnArchiver.extractFile(Ljava/io/File;Ljava/io/File;Ljava/io/InputStream;Ljava/lang/String;Ljava/util/Date;ZLjava/lang/Integer;Ljava/lang/String;)V"
         ],
         "call_path_annotated": [
@@ -43,11 +52,11 @@
             "edge_type": "INHERITED"
           },
           {
-            "sig": "org.codehaus.plexus.archiver.tar.TarUnArchiver.execute()V",
-            "edge_type": "CHA_EXPANSION[org.codehaus.plexus.archiver.AbstractUnArchiver->org.codehaus.plexus.archiver.tar.TarUnArchiver]"
+            "sig": "org.codehaus.plexus.archiver.zip.AbstractZipUnArchiver.execute()V",
+            "edge_type": "CHA_EXPANSION[org.codehaus.plexus.archiver.AbstractUnArchiver->org.codehaus.plexus.archiver.zip.AbstractZipUnArchiver]"
           },
           {
-            "sig": "org.codehaus.plexus.archiver.tar.TarUnArchiver.execute(Ljava/io/File;Ljava/io/File;)V",
+            "sig": "org.codehaus.plexus.archiver.zip.AbstractZipUnArchiver.extractFileIfIncluded(Ljava/io/File;Ljava/io/File;Ljava/io/InputStream;Ljava/lang/String;Ljava/util/Date;ZLjava/lang/Integer;Ljava/lang/String;)V",
             "edge_type": "CALL"
           },
           {
@@ -98,6 +107,15 @@
         ],
         "call_path_depth": 0,
         "trace_ids": []
+      },
+      "component": {
+        "status": "in_range",
+        "matches": [
+          {
+            "jar": "demo-projects\\plexus-demo\\target\\dependency\\commons-io-2.6.jar",
+            "version": "2.6"
+          }
+        ]
       },
       "static": {
         "status": "not_reachable",
@@ -158,6 +176,10 @@
         "call_path_depth": 0,
         "trace_ids": []
       },
+      "component": {
+        "status": "inconclusive",
+        "matches": []
+      },
       "static": {
         "status": "not_reachable",
         "confidence": 0.7,
@@ -216,6 +238,10 @@
         ],
         "call_path_depth": 0,
         "trace_ids": []
+      },
+      "component": {
+        "status": "inconclusive",
+        "matches": []
       },
       "static": {
         "status": "not_reachable",
