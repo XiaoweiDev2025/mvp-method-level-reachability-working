@@ -3,7 +3,7 @@
   "specVersion": "1.5",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-08-06T21:30:10.115621Z",
+    "timestamp": "2026-08-07T14:05:51.704199Z",
     "tools": [
       {
         "name": "vuln-risk-assessor",
@@ -15,9 +15,11 @@
     {
       "id": "CVE-2018-1002200",
       "analysis": {
-        "state": "not_affected",
+        "state": "in_triage",
         "detail": "Static: not_reachable (conf=0.7) | Uncertain features: ['invokedynamic_not_modelled'] | Runtime: not_observed (conf=0.6)",
-        "response": []
+        "response": [
+          "update"
+        ]
       },
       "affects": [
         {
@@ -28,9 +30,11 @@
     {
       "id": "CVE-2021-29425",
       "analysis": {
-        "state": "not_affected",
+        "state": "in_triage",
         "detail": "Static: not_reachable (conf=0.7) | Uncertain features: ['invokedynamic_not_modelled'] | Runtime: not_observed (conf=0.6)",
-        "response": []
+        "response": [
+          "update"
+        ]
       },
       "affects": [
         {
@@ -56,9 +60,11 @@
     {
       "id": "CVE-2022-42889",
       "analysis": {
-        "state": "not_affected",
+        "state": "in_triage",
         "detail": "Static: not_reachable (conf=0.7) | Uncertain features: ['invokedynamic_not_modelled'] | Runtime: not_observed (conf=0.6)",
-        "response": []
+        "response": [
+          "update"
+        ]
       },
       "affects": [
         {

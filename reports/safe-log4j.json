@@ -1,5 +1,6 @@
 {
   "project": "com.example:safe-log4j-demo",
+  "generated_at": "2026-08-07T14:06:17.822835Z",
   "findings": [
     {
       "chain_id": "CVE-2021-44228::com.example:safe-log4j-demo",

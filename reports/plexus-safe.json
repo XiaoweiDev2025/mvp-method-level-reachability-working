@@ -1,5 +1,6 @@
 {
   "project": "com.example:safe-plexus-demo",
+  "generated_at": "2026-08-07T14:06:18.392915Z",
   "findings": [
     {
       "chain_id": "CVE-2018-1002200::com.example:safe-plexus-demo",

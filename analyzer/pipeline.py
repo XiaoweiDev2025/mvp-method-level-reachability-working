@@ -18,6 +18,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import sys
 from pathlib import Path
@@ -176,6 +177,12 @@ def run(
 
     report = {
         "project": project_artifact,
+        # ISO 8601 timestamp of this analysis run. Not touched by audit.py's
+        # own read-modify-write cycle (it only replaces one finding within
+        # an existing report), so this continues to mark when the automated
+        # analysis first produced this report, distinct from any later
+        # AuditRecord.reviewed_at timestamp.
+        "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z"),
         "findings": findings,
         "summary": {
             "total": len(chains),
@@ -196,29 +203,67 @@ def run(
 
 
 _VEX_STATE_MAP = {
+    # CycloneDX 1.5's impactAnalysisState enum is exactly {resolved,
+    # resolved_with_pedigree, exploitable, in_triage, false_positive,
+    # not_affected} -- "fixed" is not a member of it. An earlier version of
+    # this map used "fixed" here, which produced a schema-invalid VEX
+    # document for any FIXED-decision finding.
     "affected":               "exploitable",
     "likely_affected":        "in_triage",
     "under_investigation":    "in_triage",
-    "not_affected_candidate": "not_affected",
-    "fixed":                  "fixed",
+    # not_affected_candidate deliberately maps to in_triage, not CycloneDX's
+    # not_affected: not_affected asserts "the component or service is not
+    # affected by the vulnerability" and requires a justification per the
+    # CycloneDX spec, a stronger and more definitive claim than this decision
+    # is designed to make -- the "_candidate" in its own name exists
+    # specifically to withhold that stronger claim (see fusion.py). in_triage
+    # ("being investigated") is not a perfect semantic match either -- this
+    # decision is not actively under investigation, it is a bounded negative
+    # finding awaiting confirmation -- but under-claiming here is preferred
+    # to reusing a VEX state whose own spec explicitly promises something
+    # this decision does not.
+    "not_affected_candidate": "in_triage",
+    "fixed":                  "resolved",
     "mitigated":              "not_affected",
+}
+
+
+
+# CycloneDX 1.5 requires a justification for every not_affected state. With
+# the not_affected_candidate -> in_triage remapping above, "mitigated" is now
+# the only decision that reaches not_affected, and it maps cleanly onto one
+# specific justification value: protected_by_mitigating_control ("preventative
+# measures have been implemented that reduce likelihood/impact"), which is
+# exactly what a MITIGATED decision's compensating_controls represent. No
+# other decision/state pairing gets a justification value here: none of
+# CycloneDX's other justification values (code_not_present,
+# code_not_reachable, requires_configuration, ...) accurately describes what
+# this system's own bounded evidence actually supports, and assigning one
+# anyway would manufacture a false-precision claim rather than close a real
+# gap.
+_VEX_JUSTIFICATION = {
+    "mitigated": "protected_by_mitigating_control",
 }
 
 
 def write_vex(path: Path, project_artifact: str, chains: list[EvidenceChain]) -> None:
     """Write a CycloneDX 1.5 VEX document for CRA conformity assessors."""
-    import datetime
     now = datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z")
     vulnerabilities = []
     for chain in chains:
-        state = _VEX_STATE_MAP.get(chain.decision.value if chain.decision else "", "in_triage")
+        decision_value = chain.decision.value if chain.decision else ""
+        state = _VEX_STATE_MAP.get(decision_value, "in_triage")
+        analysis = {
+            "state": state,
+            "detail": chain.notes,
+            "response": ["update"] if state in ("exploitable", "in_triage") else [],
+        }
+        justification = _VEX_JUSTIFICATION.get(decision_value)
+        if justification:
+            analysis["justification"] = justification
         vulnerabilities.append({
             "id": chain.cve,
-            "analysis": {
-                "state": state,
-                "detail": chain.notes,
-                "response": ["update"] if state in ("exploitable", "in_triage") else [],
-            },
+            "analysis": analysis,
             "affects": [{"ref": project_artifact}],
         })
 

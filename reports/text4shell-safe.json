@@ -1,5 +1,6 @@
 {
   "project": "com.example:safe-text4shell-demo",
+  "generated_at": "2026-08-07T14:06:18.000500Z",
   "findings": [
     {
       "chain_id": "CVE-2022-42889::com.example:safe-text4shell-demo",

@@ -106,7 +106,17 @@ def _span_matches_seed(span: SpanRecord, seed: VulnerableMethod) -> Optional[str
       "exact"                — code.namespace and code.function attributes both match
                                 the seed's FQCN and method name. These attributes are
                                 always present for otel.instrumentation.methods.include
-                                spans, and identify the method unambiguously.
+                                spans, and identify the method more precisely than the
+                                fallback tier below -- but not with full JVM-descriptor
+                                precision: OTel's method-level instrumentation does not
+                                record the descriptor, so an overloaded method sharing
+                                the seed's class and method name (different parameter
+                                types) would also match this tier. The static analyzer's
+                                own matching (static_analyzer.py::_matches_seed) is
+                                stricter when the seed itself specifies a descriptor,
+                                since bytecode call-graph edges carry one; OTel spans
+                                never carry one at all, so this tier cannot achieve that
+                                same precision regardless of what the seed specifies.
       "span_name_heuristic"  — code.* attributes are absent (older or differently
                                 configured OTel agent), so the span's name is compared
                                 against "SimpleClassName.method" instead. This carries
@@ -174,6 +184,17 @@ def analyze_traces(trace_log: Path, seed_method: VulnerableMethod) -> RuntimeEvi
       NOT_OBSERVED — OTel was running but no matching span found
                      (NOT proof of safety: the test may not have triggered the path)
       NOT_RUN      — trace file missing/empty OR OTel agent was not active
+
+    NOT_OBSERVED's own boundary is narrower than "the agent was running": the
+    startup banner _otel_agent_was_active() checks for only proves the agent
+    process was active, not that the seed method specifically was ever
+    correctly named in the agent's own -Dotel.instrumentation.methods.include
+    configuration. The trace log format does not record that configuration
+    value at all (only the banner and any spans actually produced), so a
+    typo'd or omitted include pattern for the seed method and a genuinely
+    untriggered-but-correctly-instrumented method are indistinguishable from
+    the log alone -- both currently read as NOT_OBSERVED. This is a real,
+    undetected gap, not merely a documented one.
     """
     if not trace_log.exists() or trace_log.stat().st_size == 0:
         return RuntimeEvidence(

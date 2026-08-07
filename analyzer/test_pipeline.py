@@ -22,7 +22,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from fusion import fuse
-from pipeline import assess_cve
+from models import Decision, EvidenceChain, EvidenceLevel
+from pipeline import assess_cve, write_vex
 from remediation import build_remediation
 from runtime_analyzer import analyze_traces
 from seed_loader import load_seed
@@ -154,6 +155,62 @@ def test_assess_cve_l1_short_circuit():
     return True
 
 
+def test_write_vex_state_mapping():
+    """
+    Regression coverage for the VEX mapping fixes:
+      - "fixed" must map to CycloneDX's "resolved", not the non-existent
+        state "fixed" (an earlier version of this map produced schema-invalid
+        output for every FIXED-decision finding).
+      - "not_affected_candidate" must map to "in_triage", not "not_affected"
+        (CycloneDX's not_affected asserts unconditional non-affection, a
+        stronger claim than a hedged _candidate decision is designed to make).
+      - "mitigated" -> "not_affected" gets an explicit justification
+        (protected_by_mitigating_control); no other decision does, since none
+        of CycloneDX's other justification values accurately describe what
+        this system's bounded evidence supports.
+    """
+    print("=" * 70)
+    print("Test: write_vex() state/justification mapping")
+    print("=" * 70)
+
+    def _chain(decision: Decision, cve: str = "CVE-2021-44228") -> EvidenceChain:
+        return EvidenceChain(
+            chain_id=f"{cve}::test", cve=cve, project_artifact="test:app:1.0",
+            vulnerable_component="g:a:range", seed_method="Foo.bar()",
+            evidence_level=EvidenceLevel.L2_SEED_IDENTIFIED,
+            decision=decision, decision_confidence=0.5, risk_score=1.0,
+            notes="test notes",
+        )
+
+    cases = [
+        (Decision.AFFECTED, "exploitable", None),
+        (Decision.LIKELY_AFFECTED, "in_triage", None),
+        (Decision.UNDER_INVESTIGATION, "in_triage", None),
+        (Decision.NOT_AFFECTED_CANDIDATE, "in_triage", None),
+        (Decision.FIXED, "resolved", None),
+        (Decision.MITIGATED, "not_affected", "protected_by_mitigating_control"),
+    ]
+
+    with tempfile.TemporaryDirectory() as tmp:
+        vex_path = Path(tmp) / "out.vex.json"
+        chains = [_chain(d) for d, _, _ in cases]
+        write_vex(vex_path, "test:app:1.0", chains)
+        doc = json.loads(vex_path.read_text(encoding="utf-8"))
+
+    assert len(doc["vulnerabilities"]) == len(cases)
+    for vuln, (decision, expected_state, expected_justification) in zip(doc["vulnerabilities"], cases):
+        analysis = vuln["analysis"]
+        assert analysis["state"] == expected_state, \
+            f"{decision.value}: expected state {expected_state!r}, got {analysis['state']!r}"
+        assert analysis.get("justification") == expected_justification, \
+            f"{decision.value}: expected justification {expected_justification!r}, got {analysis.get('justification')!r}"
+        print(f"  {decision.value:24s} -> state={analysis['state']:12s} "
+              f"justification={analysis.get('justification')} (OK)")
+
+    print("  PASS")
+    return True
+
+
 def main():
     result = run_pipeline(
         cve_id           = "CVE-2021-44228",
@@ -172,7 +229,12 @@ def main():
 
     # evidence_summary assertions
     es = result["evidence_summary"]
-    assert es["dependency_match"] is True
+    # run_pipeline() above calls fuse() directly without a component check
+    # (see fuse()'s own component parameter, unused here), so
+    # dependency_match is correctly None (unchecked), not True: this test
+    # exercises the static/runtime fusion path in isolation, not the L1 gate.
+    assert es["dependency_match"] is None
+    assert es["component_check_status"] is None
     assert es["static_reachable"] is True
     assert es["runtime_observed"] is True
     assert es["entry_points"], "entry_points should be non-empty"
@@ -197,4 +259,5 @@ def main():
 if __name__ == "__main__":
     main()
     test_assess_cve_l1_short_circuit()
+    test_write_vex_state_mapping()
     sys.exit(0)

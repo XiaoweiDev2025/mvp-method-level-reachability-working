@@ -1,5 +1,6 @@
 {
   "project": "com.example:commons-io-demo",
+  "generated_at": "2026-08-07T14:06:17.626218Z",
   "findings": [
     {
       "chain_id": "CVE-2018-1002200::com.example:commons-io-demo",
@@ -10,7 +11,7 @@
       "evidence_level": 2,
       "evidence_summary": {
         "component_check_status": "inconclusive",
-        "dependency_match": true,
+        "dependency_match": null,
         "static_reachable": false,
         "runtime_observed": false,
         "entry_points": [
@@ -152,7 +153,7 @@
       "evidence_level": 2,
       "evidence_summary": {
         "component_check_status": "inconclusive",
-        "dependency_match": true,
+        "dependency_match": null,
         "static_reachable": false,
         "runtime_observed": false,
         "entry_points": [
@@ -215,7 +216,7 @@
       "evidence_level": 2,
       "evidence_summary": {
         "component_check_status": "inconclusive",
-        "dependency_match": true,
+        "dependency_match": null,
         "static_reachable": false,
         "runtime_observed": false,
         "entry_points": [

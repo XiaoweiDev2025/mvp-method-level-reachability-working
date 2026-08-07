@@ -68,7 +68,14 @@ class EvidenceLevel(int, Enum):
       established independently of any specific project's L1 outcome, and the
       pipeline reaches L2 regardless of whether L1 comes back IN_RANGE or
       INCONCLUSIVE (see ComponentCheckStatus above; only a confirmed
-      OUT_OF_RANGE result short-circuits before L2 is reached).
+      OUT_OF_RANGE result short-circuits before L2 is reached). This makes
+      evidence_level an evidentiary-STAGE marker, not an exhaustive record of
+      every fact already established: check_component_present() always takes
+      an already-validated Seed as a required argument, so the fact L2 records
+      (that a specific vulnerable method has been identified for this CVE) is
+      already true before L1 even runs, for every finding including an L1
+      OUT_OF_RANGE one -- the level records which stage's evidence determined
+      this particular finding, not which facts happen to hold.
     - L3-L4 are application-specific automated evidence, and this half
       genuinely is cumulative: L3 (STATIC_REACHABLE) presupposes a validated
       seed method to search a call path for, and L4 additionally requires L3
@@ -171,6 +178,14 @@ class AuditRecord:
     justification: str = ""
     waiver_expires: Optional[str] = None   # ISO 8601 — if risk is temporarily accepted
     compensating_controls: str = ""        # Required when waiver_expires is set
+    reviewer_confidence: Optional[float] = None  # 0.0-1.0, reviewer's own stated confidence
+                                            # in an overriding decision. Only meaningful when
+                                            # decision_override actually changes the decision
+                                            # (see audit.py::apply_audit_to_dict): the pre-audit
+                                            # automated confidence was evidence for the decision
+                                            # being replaced, not the new one, so it cannot be
+                                            # inherited as a baseline the way a confirmation's
+                                            # confidence bump can.
 
     # Pre-audit snapshot, filled in by audit.py::apply_audit_to_dict before it
     # overwrites the finding's top-level fields. Without this, the automated
@@ -190,6 +205,7 @@ class AuditRecord:
             "justification":               self.justification,
             "waiver_expires":               self.waiver_expires,
             "compensating_controls":        self.compensating_controls,
+            "reviewer_confidence":          self.reviewer_confidence,
             "previous_decision":            self.previous_decision,
             "previous_evidence_level":      self.previous_evidence_level,
             "previous_risk_score":          self.previous_risk_score,
@@ -233,6 +249,13 @@ class EvidenceChain:
         se = self.static_evidence
         rt = self.runtime_evidence
         component_status_value = ce.status.value if ce else None
+        # True only for a confirmed IN_RANGE match, False only for a confirmed
+        # OUT_OF_RANGE match; INCONCLUSIVE (checked, but couldn't confirm
+        # either way) and None (not checked at all) both map to None here
+        # rather than True -- collapsing "confirmed present" and "not
+        # confirmed absent" into the same True value would let a machine
+        # consumer read an unconfirmed component as a confirmed one.
+        dependency_match = {"in_range": True, "out_of_range": False}.get(component_status_value)
         return {
             "chain_id": self.chain_id,
             "cve": self.cve,
@@ -242,7 +265,7 @@ class EvidenceChain:
             "evidence_level": self.evidence_level.value,
             "evidence_summary": {
                 "component_check_status": component_status_value,
-                "dependency_match": component_status_value != "out_of_range",
+                "dependency_match": dependency_match,
                 "static_reachable": se.status.value == "reachable" if se else False,
                 "runtime_observed": rt.status.value == "observed" if rt else False,
                 "entry_points": se.entry_points_used if se else [],
@@ -269,6 +292,7 @@ class EvidenceChain:
                 "confidence": rt.confidence,
                 "trace_ids": rt.trace_ids,
                 "observed_call_count": rt.observed_call_count,
+                "test_environment": rt.test_environment,
             } if rt else None,
             "decision": self.decision.value if self.decision else None,
             "decision_confidence": self.decision_confidence,

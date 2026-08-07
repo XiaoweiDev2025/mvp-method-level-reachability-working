@@ -1,5 +1,6 @@
 {
   "project": "com.example:safe-commons-io-demo",
+  "generated_at": "2026-08-07T14:06:18.213605Z",
   "findings": [
     {
       "chain_id": "CVE-2021-29425::com.example:safe-commons-io-demo",

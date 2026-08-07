@@ -79,6 +79,14 @@ def apply_audit_to_dict(finding: dict, audit_record: AuditRecord) -> dict:
 
     finding["evidence_level"] = 5  # EvidenceLevel.L5_AUDITED
 
+    # A genuine override replaces the automated decision with a different one.
+    # decision_override equal to the pre-audit decision (or absent) is a
+    # confirmation, not an override -- distinct handling below.
+    is_override = (
+        audit_record.decision_override is not None
+        and audit_record.decision_override != audit_record.previous_decision
+    )
+
     if audit_record.decision_override:
         finding["decision"] = audit_record.decision_override
 
@@ -88,9 +96,28 @@ def apply_audit_to_dict(finding: dict, audit_record: AuditRecord) -> dict:
     # multiplier, which could silently drift from fusion.DECISION_BASE_MULTIPLIER over time.
     finding["risk_score"] = risk_score_for_decision(finding.get("cve", ""), finding["decision"])
 
-    # Human review raises confidence, capped at 0.98
-    prev_conf = finding.get("decision_confidence", 0.5)
-    finding["decision_confidence"] = round(min(0.98, prev_conf + 0.20), 4)
+    if is_override:
+        # The pre-audit confidence was evidence for the decision just replaced,
+        # not the new one -- carrying it forward via "+0.20" would let
+        # confidence supporting (for example) NOT_AFFECTED_CANDIDATE become
+        # the baseline confidence for an overriding AFFECTED, which asserts
+        # the opposite conclusion. Confidence in an override instead comes
+        # from the reviewer's own judgement: reviewer_confidence if supplied,
+        # otherwise a fixed, documented default (not derived from the
+        # discarded automated confidence in any way).
+        base_conf = (
+            audit_record.reviewer_confidence
+            if audit_record.reviewer_confidence is not None
+            else 0.90
+        )
+        finding["decision_confidence"] = round(min(0.98, base_conf), 4)
+    else:
+        # Confirmation: reviewer agrees with the existing automated decision
+        # (no override, or an override that names the same decision), raising
+        # confidence in that same decision. Human review raises confidence,
+        # capped at 0.98.
+        prev_conf = finding.get("decision_confidence", 0.5)
+        finding["decision_confidence"] = round(min(0.98, prev_conf + 0.20), 4)
 
     record_dict = audit_record.to_dict()
     finding.setdefault("audit_history", []).append(record_dict)
@@ -116,6 +143,13 @@ def main() -> None:
                         choices=[d.value for d in Decision],
                         default=None,
                         help="Override the automated decision (optional)")
+    parser.add_argument("--reviewer-confidence", type=float, default=None,
+                        help="Reviewer's own confidence (0.0-1.0) in an overriding decision. "
+                             "Only used when --decision-override names a decision different "
+                             "from the finding's current one; defaults to 0.90 if not given. "
+                             "Ignored for a confirmation (no override, or an override matching "
+                             "the current decision), which instead raises the existing "
+                             "confidence by a fixed 0.20.")
     parser.add_argument("--waiver-expires", default=None,
                         help="ISO 8601 timestamp if risk is temporarily accepted")
     parser.add_argument("--compensating-controls", default="",
@@ -145,6 +179,8 @@ def main() -> None:
         parser.error("--justification is required")
     if args.waiver_expires and not args.compensating_controls:
         parser.error("--compensating-controls is required when --waiver-expires is set")
+    if args.reviewer_confidence is not None and not (0.0 <= args.reviewer_confidence <= 1.0):
+        parser.error("--reviewer-confidence must be between 0.0 and 1.0")
 
     # Find the target finding
     findings = report.get("findings", [])
@@ -165,6 +201,7 @@ def main() -> None:
         justification=args.justification,
         waiver_expires=args.waiver_expires,
         compensating_controls=args.compensating_controls,
+        reviewer_confidence=args.reviewer_confidence,
     )
 
     report["findings"][target_idx] = apply_audit_to_dict(

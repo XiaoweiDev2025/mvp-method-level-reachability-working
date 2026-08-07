@@ -3,7 +3,7 @@
   "specVersion": "1.5",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-08-05T12:06:49.542488Z",
+    "timestamp": "2026-08-07T13:07:20.051041Z",
     "tools": [
       {
         "name": "vuln-risk-assessor",
@@ -15,9 +15,11 @@
     {
       "id": "CVE-2021-29425",
       "analysis": {
-        "state": "not_affected",
+        "state": "in_triage",
         "detail": "Static: not_reachable (conf=0.7) | Uncertain features: ['invokedynamic_not_modelled']",
-        "response": []
+        "response": [
+          "update"
+        ]
       },
       "affects": [
         {

@@ -1,5 +1,6 @@
 {
   "project": "com.example:reflection-log4j-demo",
+  "generated_at": "2026-08-07T14:06:18.591989Z",
   "findings": [
     {
       "chain_id": "CVE-2021-44228::com.example:reflection-log4j-demo",
@@ -55,7 +56,8 @@
         "trace_ids": [
           "9d48f58cfdf37ea0f35bdbc290b2e386"
         ],
-        "observed_call_count": 1
+        "observed_call_count": 1,
+        "test_environment": "otel-logging-javaagent-1.32.0"
       },
       "decision": "under_investigation",
       "decision_confidence": 0.48999999999999994,
