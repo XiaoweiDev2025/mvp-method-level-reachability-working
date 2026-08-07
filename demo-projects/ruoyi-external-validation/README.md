@@ -22,9 +22,10 @@ rebuild these JARs from scratch.
 - Relevant dependency: `commons-io:2.5`, declared via the
   `<commons.io.version>2.5</commons.io.version>` property in the root
   `pom.xml` — within the vulnerable range for CVE-2021-29425 (`>=2.0,<2.7`).
-  The project has since been upgraded past the fixed version (2.7); this tag
-  is a historical snapshot of a genuinely vulnerable dependency state, not a
-  claim about the project's current security posture.
+  The project's current `master` branch pins `commons-io:2.22.0` (verified
+  against the upstream repository), well past the fixed version 2.7; this
+  tag is a historical snapshot of a genuinely vulnerable dependency state,
+  not a claim about the project's current security posture.
 
 ## Why this project
 
