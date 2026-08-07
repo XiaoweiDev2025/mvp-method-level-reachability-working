@@ -164,7 +164,11 @@ class CallGraph:
         targets: dict[str, str] = {callee_sig: "CALL"}
 
         # DOWN: concrete subtypes that might override the method
-        for subtype in self._all_subtypes.get(base_class, set()):
+        # sorted() so that when more than one subtype is a valid CHA-assumed
+        # target, which one ends up on the reported witness path is deterministic
+        # across runs rather than dependent on Python's per-process string hash
+        # randomization affecting set iteration order.
+        for subtype in sorted(self._all_subtypes.get(base_class, set())):
             targets[f"{subtype}.{method_and_desc}"] = f"CHA_EXPANSION[{base_class}->{subtype}]"
 
         # UP: if callee has no outgoing edges (method not defined in base_class),
@@ -265,7 +269,10 @@ def bfs_reachable(
             return True, path, annotated, match_type
 
         # Get direct callees and expand via CHA (returns dict[sig, edge_type])
-        for direct_callee in cg.callers.get(current, set()):
+        # sorted() for the same determinism reason as cha_targets() above: when
+        # a node has more than one direct callee, queue insertion order decides
+        # which of several equal-length paths BFS reports as the witness path.
+        for direct_callee in sorted(cg.callers.get(current, set())):
             for callee, edge_type in cg.cha_targets(direct_callee).items():
                 if callee not in visited:
                     queue.append((

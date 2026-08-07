@@ -1,6 +1,6 @@
 {
   "project": "com.example:commons-io-demo",
-  "generated_at": "2026-08-07T14:23:55.058312Z",
+  "generated_at": "2026-08-07T16:10:27.686144Z",
   "findings": [
     {
       "chain_id": "CVE-2018-1002200::com.example:commons-io-demo",

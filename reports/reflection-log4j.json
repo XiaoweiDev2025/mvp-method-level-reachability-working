@@ -1,6 +1,6 @@
 {
   "project": "com.example:reflection-log4j-demo",
-  "generated_at": "2026-08-07T14:23:56.135003Z",
+  "generated_at": "2026-08-07T16:11:15.213582Z",
   "findings": [
     {
       "chain_id": "CVE-2021-44228::com.example:reflection-log4j-demo",
