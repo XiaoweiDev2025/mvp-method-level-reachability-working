@@ -136,9 +136,10 @@ def test_read_pom_properties_and_check_component_present():
         assert result.matches == []
         print(f"  check_component_present([unrelated_jar only]) -> status={result.status.value} (OK)")
 
-        # Both a vulnerable AND a safe copy on the classpath (e.g. a patched
-        # direct dependency alongside an old vendored copy in another JAR):
-        # must resolve IN_RANGE, not short-circuit on whichever is found first.
+        # Both a vulnerable AND a safe copy on the classpath (an ordinary Maven
+        # version conflict: a patched direct dependency alongside an older
+        # version pulled in transitively): must resolve IN_RANGE, not
+        # short-circuit on whichever is found first.
         # _iter_jars sorts directory contents but here we pass an explicit
         # list, so check both orderings.
         result = check_component_present([safe_jar, vulnerable_jar], seed_package)

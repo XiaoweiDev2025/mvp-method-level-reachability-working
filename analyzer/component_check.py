@@ -21,10 +21,14 @@ shading, carries no signal either way.
 
 Every JAR carrying matching group_id:artifact_id coordinates is checked, not
 just the first one found -- a classpath can genuinely contain more than one
-version of the same component (for instance a patched direct dependency
-alongside an old vendored copy bundled inside a third-party JAR), and checking
-only the first match risks a false OUT_OF_RANGE verdict if that JAR happens to
-be the safe one. See check_component_present()'s combination rule.
+version of the same component under its own genuine, unrelocated coordinates
+(an ordinary Maven version conflict: a direct dependency's patched version
+and an older version pulled in transitively through a different path both
+end up supplied to the pipeline), and checking only the first match risks a
+false OUT_OF_RANGE verdict if that JAR happens to be the safe one. This is
+distinct from a shaded or relocated copy under different, non-matching
+coordinates, which this check cannot see at all regardless of how many JARs
+it inspects. See check_component_present()'s combination rule.
 
 The version comparator is a deliberately narrow implementation, not a full
 Maven ComparableVersion algorithm: two purely numeric segments are compared

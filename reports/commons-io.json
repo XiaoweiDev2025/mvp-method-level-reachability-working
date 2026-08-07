@@ -1,6 +1,6 @@
 {
   "project": "com.example:commons-io-demo",
-  "generated_at": "2026-08-07T14:06:17.626218Z",
+  "generated_at": "2026-08-07T14:23:55.058312Z",
   "findings": [
     {
       "chain_id": "CVE-2018-1002200::com.example:commons-io-demo",
@@ -39,6 +39,7 @@
         "residual_risk_reason": [
           "reflection_not_modelled",
           "invokedynamic_not_modelled",
+          "dynamic_class_loading_not_modelled",
           "future_code_change_not_modelled"
         ],
         "engine": "asm-callgraph-1.0"
@@ -181,6 +182,7 @@
         "residual_risk_reason": [
           "reflection_not_modelled",
           "invokedynamic_not_modelled",
+          "dynamic_class_loading_not_modelled",
           "future_code_change_not_modelled"
         ],
         "engine": "asm-callgraph-1.0"
@@ -244,6 +246,7 @@
         "residual_risk_reason": [
           "reflection_not_modelled",
           "invokedynamic_not_modelled",
+          "dynamic_class_loading_not_modelled",
           "future_code_change_not_modelled"
         ],
         "engine": "asm-callgraph-1.0"

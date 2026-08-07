@@ -1,6 +1,6 @@
 {
   "project": "com.example:vulnerable-text4shell-demo",
-  "generated_at": "2026-08-07T14:06:17.172513Z",
+  "generated_at": "2026-08-07T14:23:54.586386Z",
   "findings": [
     {
       "chain_id": "CVE-2022-42889::com.example:vulnerable-text4shell-demo",

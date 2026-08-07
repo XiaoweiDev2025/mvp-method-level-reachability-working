@@ -1,6 +1,6 @@
 {
   "project": "com.example:safe-text4shell-demo",
-  "generated_at": "2026-08-07T14:06:18.000500Z",
+  "generated_at": "2026-08-07T14:23:55.498652Z",
   "findings": [
     {
       "chain_id": "CVE-2022-42889::com.example:safe-text4shell-demo",
@@ -44,6 +44,7 @@
         "residual_risk_reason": [
           "reflection_not_modelled",
           "invokedynamic_not_modelled",
+          "dynamic_class_loading_not_modelled",
           "future_code_change_not_modelled"
         ],
         "engine": "asm-callgraph-1.0"

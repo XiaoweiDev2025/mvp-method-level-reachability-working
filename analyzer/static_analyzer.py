@@ -430,6 +430,7 @@ class StaticAnalyzer:
                 residual_risk_reason=[
                     "reflection_not_modelled",
                     "invokedynamic_not_modelled",
+                    "dynamic_class_loading_not_modelled",
                     "future_code_change_not_modelled",
                 ],
                 entry_points_used=entry_points,
