@@ -100,13 +100,10 @@ MITIGATED = 0.10 (compensating controls reduce but don't eliminate exposure).
 
 from __future__ import annotations
 
-import hashlib
-from pathlib import Path
 from typing import Optional
 
 from component_check import ComponentCheckResult
 from models import (
-    ComponentCheckStatus,
     ComponentEvidence,
     Decision,
     EvidenceChain,
@@ -187,6 +184,20 @@ def _risk_multiplier(decision: Decision, level: EvidenceLevel) -> float:
 # Core fusion function
 # ---------------------------------------------------------------------------
 
+def _chain_id(cve: str, project_artifact: str) -> str:
+    return f"{cve}::{project_artifact}"
+
+
+def _vulnerable_component_label(seed: Seed) -> str:
+    return f"{seed.package.group_id}:{seed.package.artifact_id}:{seed.package.vulnerable_range}"
+
+
+def _compute_risk_score(cve: str, decision: Decision, level: EvidenceLevel) -> float:
+    base_cvss = CVSS_BASE.get(cve, DEFAULT_CVSS)
+    multiplier = _risk_multiplier(decision, level)
+    return round(base_cvss * multiplier, 1)
+
+
 def _to_component_evidence(component: Optional[ComponentCheckResult]) -> Optional[ComponentEvidence]:
     """
     Converts a component_check.py ComponentCheckResult into the ComponentEvidence
@@ -228,25 +239,20 @@ def fuse(
     vm = seed.primary_method
     seed_sig = vm.full_signature
 
-    # Build a deterministic chain ID from CVE + project artifact
-    chain_id = f"{cve}::{project_artifact}"
-
     # --- Determine evidence level and decision ---
     level, decision, confidence = _decide(static, runtime)
 
     # --- Compute risk score ---
-    base_cvss = CVSS_BASE.get(cve, DEFAULT_CVSS)
-    multiplier = _risk_multiplier(decision, level)
-    risk_score = round(base_cvss * multiplier, 1)
+    risk_score = _compute_risk_score(cve, decision, level)
 
     # --- Build notes for audit trail ---
     notes = _build_notes(static, runtime, decision)
 
     return EvidenceChain(
-        chain_id=chain_id,
+        chain_id=_chain_id(cve, project_artifact),
         cve=cve,
         project_artifact=project_artifact,
-        vulnerable_component=f"{seed.package.group_id}:{seed.package.artifact_id}:{seed.package.vulnerable_range}",
+        vulnerable_component=_vulnerable_component_label(seed),
         seed_method=seed_sig,
         evidence_level=level,
         component_evidence=_to_component_evidence(component),
@@ -285,9 +291,7 @@ def fuse_component_absent(
     decision = Decision.NOT_AFFECTED_CANDIDATE
     confidence = 0.90
 
-    base_cvss = CVSS_BASE.get(cve, DEFAULT_CVSS)
-    multiplier = _risk_multiplier(decision, level)
-    risk_score = round(base_cvss * multiplier, 1)
+    risk_score = _compute_risk_score(cve, decision, level)
 
     versions_found = ", ".join(f"{v} ({p.name})" for p, v in component.matches)
     notes = (
@@ -300,10 +304,10 @@ def fuse_component_absent(
     )
 
     return EvidenceChain(
-        chain_id=f"{cve}::{project_artifact}",
+        chain_id=_chain_id(cve, project_artifact),
         cve=cve,
         project_artifact=project_artifact,
-        vulnerable_component=f"{seed.package.group_id}:{seed.package.artifact_id}:{seed.package.vulnerable_range}",
+        vulnerable_component=_vulnerable_component_label(seed),
         seed_method=seed.primary_method.full_signature,
         evidence_level=level,
         component_evidence=_to_component_evidence(component),

@@ -12,7 +12,7 @@ RemediationAdvice that tells the developer:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from models import Decision, EvidenceChain, EvidenceLevel, RuntimeReachability, StaticReachability
 from seed_loader import Seed

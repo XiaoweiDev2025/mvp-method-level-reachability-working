@@ -50,9 +50,11 @@ class CallGraph:
     """
     In-memory call graph parsed from the extractor's text output.
 
-    Edges are stored twice:
+    Edges are stored one direction only:
       - callers: forward index  caller_sig -> {callee_sig, ...}
-      - callees: reverse index  callee_sig -> {caller_sig, ...}  (unused for BFS but useful for debugging)
+    No reverse (callee -> callers) index is maintained; nothing in this
+    module currently needs one, since BFS only ever walks forward from
+    entry points.
 
     Class hierarchy:
       - superclass:   class -> direct superclass (single inheritance)

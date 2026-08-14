@@ -6,7 +6,7 @@ the specific Java method that contains or triggers the vulnerable behaviour.
 Seeds are the anchor point for both static and runtime reachability analysis.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 import yaml

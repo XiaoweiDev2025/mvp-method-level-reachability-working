@@ -188,9 +188,12 @@ def run(
         "findings": findings,
         "summary": {
             "total": len(chains),
-            "affected":    sum(1 for c in chains if c.decision and c.decision.value == "affected"),
-            "not_affected": sum(1 for c in chains if c.decision and c.decision.value == "not_affected_candidate"),
+            "affected":            sum(1 for c in chains if c.decision and c.decision.value == "affected"),
+            "likely_affected":     sum(1 for c in chains if c.decision and c.decision.value == "likely_affected"),
             "under_investigation": sum(1 for c in chains if c.decision and c.decision.value == "under_investigation"),
+            "not_affected":        sum(1 for c in chains if c.decision and c.decision.value == "not_affected_candidate"),
+            "fixed":               sum(1 for c in chains if c.decision and c.decision.value == "fixed"),
+            "mitigated":           sum(1 for c in chains if c.decision and c.decision.value == "mitigated"),
         },
     }
 
