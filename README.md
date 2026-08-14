@@ -97,7 +97,7 @@ To complement this reachable case with a genuine non-reachable one, the pipeline
 | Static result | NOT_REACHABLE (only call site into `FilenameUtils` is `getExtension()`, which never reaches `getPrefixLength()`) |
 | Final decision | **L2 NOT_AFFECTED_CANDIDATE, risk=0.5, conf=0.595** |
 
-No live runtime instrumentation was captured for this case (RuoYi requires a MySQL-backed deployment); the exhaustive call-site count already gives a stronger guarantee than a runtime trace bounded to whichever payloads happen to be sent.
+No live runtime instrumentation was captured for this case (RuoYi requires a MySQL-backed deployment). Static inspection here covers every call site into `FilenameUtils` across the whole compiled application, not just whichever payloads a particular test run happens to exercise — but this is not a substitute for runtime evidence, only a different kind of evidence answering a different question. This result remains a static-only, runtime-unconfirmed finding, subject to the same reflection/invokedynamic/incomplete-classpath caveats as any other NOT_REACHABLE result.
 
 ---
 

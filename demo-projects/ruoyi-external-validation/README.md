@@ -86,7 +86,8 @@ python analyzer/pipeline.py \
 | Final decision | **L2 not_affected_candidate, risk=0.5, conf=0.595** |
 
 No live runtime instrumentation was captured for this case — see the
-thesis's External Validation Results section for why that step would not
-have added information here (the source-level call-site count already gives
-a more exhaustive guarantee than a runtime trace bounded to whichever
-payloads happen to be sent).
+thesis's External Validation Results section for the full reasoning. Static
+inspection here covers every call site into `FilenameUtils` across the whole
+compiled application, but this is not a substitute for runtime evidence,
+only a different kind of evidence answering a different question; this
+result remains runtime-unconfirmed.
