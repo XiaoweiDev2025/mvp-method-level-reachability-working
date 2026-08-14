@@ -3,11 +3,13 @@ Vulnerability Risk Assessment Pipeline.
 
 Runs the full evidence chain for one or more CVEs against a given project:
   1. Load seeds (YAML)
-  2. Build or load a call graph (Java extractor)
-  3. Static reachability analysis (BFS + CHA)
-  4. Runtime evidence (OTel trace log, if available)
-  5. Evidence fusion (L0–L5 level, decision, risk score)
-  6. Write JSON report to reports/
+  2. L1 component check (is the vulnerable component even present, in range?
+     a confirmed OUT_OF_RANGE result short-circuits steps 3-5 below)
+  3. Build or load a call graph (Java extractor)
+  4. Static reachability analysis (BFS + CHA)
+  5. Runtime evidence (OTel trace log, if available)
+  6. Evidence fusion (L0–L5 level, decision, risk score) + remediation advice
+  7. Write JSON report (and optional CycloneDX VEX document) to reports/
 
 Usage:
     python analyzer/pipeline.py --help

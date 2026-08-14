@@ -10,10 +10,14 @@ Returns a StaticEvidence with one of three states:
   NOT_REACHABLE — BFS exhausted with no path to the seed
   UNKNOWN       — no entry points could be identified in the call graph at
                   all (currently the only trigger; see find_entry_points),
-                  so the search itself never ran. Reflection, dynamic
-                  proxy, and missing-classpath gaps do NOT produce UNKNOWN —
-                  they are recorded as uncertain_features on a REACHABLE or
-                  NOT_REACHABLE result instead (see analyze() below).
+                  so the search itself never ran. Reflection, dynamic proxy,
+                  and dynamic class-loading gaps do NOT produce UNKNOWN --
+                  on a NOT_REACHABLE result they are instead recorded via
+                  residual_risk_reason (invokedynamic_not_modelled is also
+                  duplicated into uncertain_features; see analyze() below).
+                  A REACHABLE result carries neither, since a path was
+                  already found. An incomplete classpath is a known scope
+                  boundary, not something tracked per finding.
 
 The analysis uses CHA (Class Hierarchy Analysis): when a call is made
 on an interface or abstract class, we conservatively assume all known
@@ -367,7 +371,10 @@ class StaticAnalyzer:
         """
         Full pipeline: extract call graph, then run BFS reachability.
 
-        callgraph_cache: if provided, skip extraction and use this file directly.
+        callgraph_cache: if provided and the file already exists, skip
+          extraction and parse it directly; if provided but not yet
+          present, extraction still runs and writes its output to this
+          path instead of a temp file, so a later call can reuse it.
         project_prefix: Maven groupId used as Java package prefix to filter entry
           points to project-owned classes only (e.g. "com.example").
         extra_entry_points: additional method signatures to seed BFS from.

@@ -40,7 +40,7 @@ the OUT_OF_RANGE short-circuit case. An
 inconclusive check is never treated as evidence of absence.
 
 Decision rules (applied in priority order):
-  1. Static=REACHABLE + Runtime=OBSERVED      → L4  AFFECTED            conf=0.95
+  1. Static=REACHABLE + Runtime=OBSERVED      → L4  AFFECTED            conf=min(static.confidence, runtime.confidence)
   2. Static=REACHABLE + Runtime=NOT_OBSERVED  → L3  LIKELY_AFFECTED     conf=0.75
   3. Static=REACHABLE + Runtime=NOT_RUN       → L3  UNDER_INVESTIGATION conf=0.60
   4. Static=NOT_REACHABLE + Runtime=OBSERVED  → L2  UNDER_INVESTIGATION conf=min(static.confidence, runtime.confidence)*0.7
@@ -48,7 +48,7 @@ Decision rules (applied in priority order):
      found — flagged for review rather than scored as either AFFECTED or NOT_AFFECTED,
      since this signals a static-model blind spot, most likely reflection or dynamic
      dispatch not visible to CHA+BFS.)
-  5. Static=NOT_REACHABLE (runtime otherwise) → L2  NOT_AFFECTED_CAND.  conf=0.70
+  5. Static=NOT_REACHABLE (runtime otherwise) → L2  NOT_AFFECTED_CAND.  conf=static.confidence*0.85
   6a. Static=UNKNOWN + Runtime=OBSERVED       → L2  UNDER_INVESTIGATION conf=runtime.confidence*0.7
   6b. Static=UNKNOWN (runtime otherwise)      → L2  UNDER_INVESTIGATION conf=0.50
   7a. No static evidence + Runtime=OBSERVED   → L2  UNDER_INVESTIGATION conf=runtime.confidence*0.7

@@ -155,7 +155,8 @@ def _compare_segments(a: str, b: str) -> Optional[int]:
             return None
         return (suffix_a > suffix_b) - (suffix_a < suffix_b)
     # one numeric, one qualifier at the same position: a bare numeric segment
-    # sorts above a qualifier segment (e.g. "2.7" > "2.7-beta1")
+    # sorts above a qualifier segment (e.g. "2.7.0" > "2.7.rc1" -- position 2
+    # is "0" vs "rc1")
     return 1 if kind_a == "numeric" else -1
 
 

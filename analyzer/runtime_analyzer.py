@@ -183,7 +183,11 @@ def analyze_traces(trace_log: Path, seed_method: VulnerableMethod) -> RuntimeEvi
       OBSERVED     — at least one span matching the seed was found
       NOT_OBSERVED — OTel was running but no matching span found
                      (NOT proof of safety: the test may not have triggered the path)
-      NOT_RUN      — trace file missing/empty OR OTel agent was not active
+      NOT_RUN      — trace file missing/empty, or zero spans were parsed at
+                     all and no agent-active banner was found either. If any
+                     spans were parsed despite a missing banner, they are
+                     still matched normally rather than forced to NOT_RUN --
+                     the two conditions below are AND'd, not OR'd.
 
     NOT_OBSERVED's own boundary is narrower than "the agent was running": the
     startup banner _otel_agent_was_active() checks for only proves the agent

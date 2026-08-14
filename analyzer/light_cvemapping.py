@@ -30,6 +30,11 @@ Why evidence_terms from a predefined vocabulary?
   In a CRA compliance context, the basis for each candidate claim must be
   auditable and reproducible. A fixed keyword set is transparent; an NLP
   model is a black box whose outputs cannot be independently verified.
+
+Known limitation: the parameter-type regex (_TYRE below) resolves at most
+  one level of generic nesting (e.g. Map<String, List<Foo>>). Deeper nesting
+  still matches (the pattern doesn't fail outright) but the extracted type
+  text may be inaccurate.
 """
 
 from __future__ import annotations

@@ -172,7 +172,8 @@ def fetch_osv(cve_id: str) -> dict:
 
     NVD-primary CVE records often lack Maven package metadata — that data lives in
     the GHSA-primary alias record. When the primary record has no ECOSYSTEM-type
-    affected[] entry for Maven, we fetch the first GHSA alias and merge:
+    affected[] entry for Maven, we try up to the first two GHSA aliases in order,
+    stopping at whichever one first yields Maven data, and merge:
       - Maven affected[] ranges
       - references (new URLs only)
       - database_specific.cwe_ids
@@ -384,10 +385,18 @@ def enhance_candidates(
     """
     Adjust candidate confidence using CWE keyword matching and regression test detection.
 
+    CWE term matching (_cwe_hits) runs once against the whole commit diff_text,
+    not per-candidate -- the resulting vuln_hit/fix_hit lists are a single
+    commit-wide signal applied uniformly to every candidate below, not a
+    check of each candidate's own hunk specifically.
+
     Upgrade rules (applied in order, stops at first that fires):
-      1. regression test added that references the method → high  (strongest signal)
-      2. CWE vuln_term in removed lines AND fix_term in added lines → medium → high
-      3. any CWE term (vuln or fix) present in diff → low → medium
+      1. regression test added that references the method → high  (strongest
+         signal, and the only one of the three that IS per-candidate)
+      2. candidate already medium AND commit has both a vuln_term and a
+         fix_term hit → high
+      3. candidate already low AND commit has any CWE term hit (vuln or fix)
+         → medium
 
     New terms found via CWE matching are appended to evidence_terms.
     """

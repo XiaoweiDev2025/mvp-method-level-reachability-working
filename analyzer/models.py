@@ -15,17 +15,23 @@ class StaticReachability(str, Enum):
     Result of static call graph analysis.
 
     NOT_REACHABLE does not mean "safe" — it means no path was found
-    within the analysis scope. Reflection, dynamic proxy, and missing-
-    classpath gaps do not produce the UNKNOWN status below; they are
-    reported as uncertain_features alongside a REACHABLE or NOT_REACHABLE
-    result instead. UNKNOWN is reserved for a narrower failure: the search
-    could not be run at all (currently: no entry points found).
+    within the analysis scope. Reflection, dynamic proxy, and dynamic
+    class-loading gaps do not produce the UNKNOWN status below; on a
+    NOT_REACHABLE result they are instead recorded via residual_risk_reason
+    (invokedynamic_not_modelled is also duplicated into uncertain_features).
+    A REACHABLE result carries neither, since a path was already found --
+    its own uncertain_features is used for match-quality signals instead
+    (e.g. relocated_package_suspected). UNKNOWN is reserved for a narrower
+    failure: the search could not be run at all (currently: no entry points
+    found). An incomplete classpath (a dependency JAR simply not supplied)
+    is not itself tracked as a per-finding reason anywhere below; it is a
+    known scope boundary, not a flagged one.
     """
     REACHABLE     = "reachable"       # A call path from entry point to seed method exists
     NOT_REACHABLE = "not_reachable"   # No path found within analysis scope
     UNKNOWN       = "unknown"         # No entry points found at all, so the search never ran.
-                                       # NOT for reflection/dynamic-proxy/missing-jar gaps, which are
-                                       # reported via uncertain_features on a REACHABLE/NOT_REACHABLE
+                                       # NOT for reflection/dynamic-proxy/dynamic-class-loading gaps,
+                                       # which are recorded via residual_risk_reason on a NOT_REACHABLE
                                        # result instead (see static_analyzer.py's StaticAnalyzer.analyze()).
 
 
@@ -86,10 +92,12 @@ class EvidenceLevel(int, Enum):
       the preceding levels, not a further automated observation.
 
     Higher levels do tend to correspond to stronger evidence, but this is not
-    a strict guarantee even within the cumulative L3-L4 half: a finding can
-    only be assigned a level consistent with how its evidence was actually
-    established, so a NOT_REACHABLE finding stays at L2 even when directly
-    contradicted by a positive runtime observation. evidence_level therefore
+    a strict guarantee across the ladder: a finding can only be assigned a
+    level consistent with how its evidence was actually established, so a
+    NOT_REACHABLE finding stays at L2 even when directly contradicted by a
+    positive runtime observation -- evidence that is, in one sense, stronger
+    than a higher L3 finding's static-only path with no runtime check yet
+    attempted. evidence_level therefore
     records which state was established, not how much concern a finding
     warrants: decision and risk_score carry the resulting prioritisation, and
     confidence records how strong the supporting evidence is -- related but

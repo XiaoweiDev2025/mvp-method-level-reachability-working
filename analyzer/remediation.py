@@ -151,8 +151,6 @@ def build_remediation(
         base_note = _RUNTIME_ONLY_POSITIVE_NOTE
     else:
         base_note = _PRIORITY_NOTES.get(priority, "")
-        if priority == "MONITOR" and decision == Decision.UNDER_INVESTIGATION:
-            base_note = _PRIORITY_NOTES["MONITOR"]
 
     if seed.package.remediation_note:
         base_note = f"{base_note} {seed.package.remediation_note}".strip()

@@ -60,7 +60,14 @@ class Seed:
 
     @property
     def primary_method(self) -> VulnerableMethod:
-        """The first (most confident) vulnerable method."""
+        """
+        The first vulnerable method listed in the seed YAML.
+
+        By convention seed authors list the most confident method first, but
+        this is not enforced or checked here -- vulnerable_methods keeps
+        whatever order the YAML declares. Every current seed has exactly one
+        method, so the convention has not yet been exercised.
+        """
         return self.vulnerable_methods[0]
 
 
