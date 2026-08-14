@@ -22,7 +22,6 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 from models import RuntimeEvidence, RuntimeReachability
 from seed_loader import VulnerableMethod
@@ -98,7 +97,7 @@ def parse_trace_log(path: Path) -> list[SpanRecord]:
 # Seed matching
 # ---------------------------------------------------------------------------
 
-def _span_matches_seed(span: SpanRecord, seed: VulnerableMethod) -> Optional[str]:
+def _span_matches_seed(span: SpanRecord, seed: VulnerableMethod) -> str | None:
     """
     Check whether a span corresponds to the seed method.
 

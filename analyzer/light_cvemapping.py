@@ -44,7 +44,6 @@ import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 try:
     import yaml as _yaml
@@ -133,7 +132,7 @@ def _java_type_to_jvm(java_type: str) -> str:
     return f"[{desc}" if (is_array and desc != "?") else desc
 
 
-def _build_descriptor_hint(return_type: str, param_types: list[str]) -> Optional[str]:
+def _build_descriptor_hint(return_type: str, param_types: list[str]) -> str | None:
     if not return_type and not param_types:
         return None
     params = "".join(_java_type_to_jvm(p) for p in param_types)
@@ -184,7 +183,7 @@ class MethodCandidate:
     """One candidate vulnerable method extracted from a fix commit diff."""
     fqcn:            str
     method:          str
-    descriptor_hint: Optional[str]  = None
+    descriptor_hint: str | None  = None
     source_file:     str            = ""
     diff_hunk:       str            = ""
     hunk_stats:      HunkStats      = field(default_factory=HunkStats)
@@ -335,7 +334,7 @@ def _declared_in(name: str, text: str, is_ctor: bool = False) -> bool:
 # Diff parser
 # ---------------------------------------------------------------------------
 
-def parse_diff(diff_text: str, package_filter: Optional[str] = None) -> list[MethodCandidate]:
+def parse_diff(diff_text: str, package_filter: str | None = None) -> list[MethodCandidate]:
     """
     Parse a unified diff and return ranked candidate vulnerable methods.
 
@@ -428,7 +427,7 @@ def parse_diff(diff_text: str, package_filter: Optional[str] = None) -> list[Met
         removed_text = "\n".join(removed_lines)
         added_text   = "\n".join(added_lines)
 
-        def _add_candidate(mname: str, hint: Optional[str], semantic_: str) -> None:
+        def _add_candidate(mname: str, hint: str | None, semantic_: str) -> None:
             key = f"{ctx.fqcn}.{mname}"
             if key in seen:
                 # Enrich existing candidate with descriptor_hint
@@ -544,7 +543,7 @@ def fetch_diff(commit_url: str) -> str:
 # High-level API
 # ---------------------------------------------------------------------------
 
-def map_commit(commit_url: str, package_filter: Optional[str] = None) -> list[MethodCandidate]:
+def map_commit(commit_url: str, package_filter: str | None = None) -> list[MethodCandidate]:
     """Fetch a fix commit diff and return ranked candidate methods."""
     return parse_diff(fetch_diff(commit_url), package_filter)
 

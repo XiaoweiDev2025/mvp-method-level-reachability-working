@@ -50,7 +50,6 @@ import re
 import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 from models import ComponentCheckStatus
 from seed_loader import SeedPackage
@@ -73,17 +72,17 @@ class ComponentCheckResult:
     matches: list[tuple[Path, str]] = field(default_factory=list)
 
     @property
-    def found_version(self) -> Optional[str]:
+    def found_version(self) -> str | None:
         """Version of the first matching JAR, for callers that just need one representative value."""
         return self.matches[0][1] if self.matches else None
 
     @property
-    def jar_path(self) -> Optional[Path]:
+    def jar_path(self) -> Path | None:
         """Path of the first matching JAR, for callers that just need one representative value."""
         return self.matches[0][0] if self.matches else None
 
 
-def _read_pom_properties(jar_path: Path) -> Optional[tuple[str, str, str]]:
+def _read_pom_properties(jar_path: Path) -> tuple[str, str, str] | None:
     """
     Read (group_id, artifact_id, version) from a JAR's own embedded
     META-INF/maven/<groupId>/<artifactId>/pom.properties, if present.
@@ -135,7 +134,7 @@ def _parse_segment(segment: str):
     return ("unparseable", None)
 
 
-def _compare_segments(a: str, b: str) -> Optional[int]:
+def _compare_segments(a: str, b: str) -> int | None:
     """
     Compares one pair of version segments. Returns -1/0/1, or None if the
     comparison cannot be made with confidence -- see this module's own
@@ -160,7 +159,7 @@ def _compare_segments(a: str, b: str) -> Optional[int]:
     return 1 if kind_a == "numeric" else -1
 
 
-def _compare_versions(a: str, b: str) -> Optional[int]:
+def _compare_versions(a: str, b: str) -> int | None:
     """
     Returns -1, 0, or 1 for a<b, a==b, a>b, or None if any segment pair could
     not be confidently compared (see _compare_segments).
@@ -193,7 +192,7 @@ def _compare_versions(a: str, b: str) -> Optional[int]:
 _RANGE_CLAUSE = re.compile(r"(>=|<=|>|<)\s*([\w.\-]+)")
 
 
-def _version_satisfies_range(version: str, range_str: str) -> Optional[bool]:
+def _version_satisfies_range(version: str, range_str: str) -> bool | None:
     """
     range_str is a comma-separated AND of clauses, e.g. ">=2.0,<2.7" or
     "<3.6.0" -- the only forms this thesis's own seed corpus uses. Returns

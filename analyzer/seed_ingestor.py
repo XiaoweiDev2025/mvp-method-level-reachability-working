@@ -34,7 +34,6 @@ import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).parent))
 
@@ -111,7 +110,7 @@ class AdvisoryMetadata:
     aliases:          list[str]        = field(default_factory=list)
     summary:          str              = ""
     cwe_ids:          list[str]        = field(default_factory=list)
-    cvss_vector:      Optional[str]    = None
+    cvss_vector:      str | None       = None
     group_id:         str              = ""
     artifact_id:      str              = ""
     ecosystem:        str              = ""
@@ -502,7 +501,7 @@ def _dump_yaml(doc: dict) -> str:
 def ingest(
     cve_id:         str,
     run_mapping:    bool          = True,
-    package_filter: Optional[str] = None,
+    package_filter: str | None = None,
     commit_override: str          = "",
 ) -> tuple[AdvisoryMetadata, list[MethodCandidate], str]:
     """

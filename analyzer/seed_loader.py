@@ -6,9 +6,10 @@ the specific Java method that contains or triggers the vulnerable behaviour.
 Seeds are the anchor point for both static and runtime reachability analysis.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 import yaml
 
 from warnlog import warn
@@ -19,7 +20,7 @@ class VulnerableMethod:
     """One vulnerable method within a CVE seed."""
     fqcn: str           # Fully Qualified Class Name, e.g. org.apache.logging.log4j.core.lookup.JndiLookup
     method: str         # Method name, e.g. lookup
-    descriptor: Optional[str]  # JVM descriptor for unambiguous matching, e.g. (Ljava/lang/String;)V
+    descriptor: str | None  # JVM descriptor for unambiguous matching, e.g. (Ljava/lang/String;)V
     confidence: str     # high / medium / low
     evidence: str = ""  # Human-readable rationale
 

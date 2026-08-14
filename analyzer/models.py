@@ -5,9 +5,10 @@ Every module in this system produces or consumes these structures.
 Defining them here ensures all modules speak the same language.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
 
 
 class StaticReachability(str, Enum):
@@ -182,11 +183,11 @@ class AuditRecord:
     """
     reviewer: str
     reviewed_at: str                       # ISO 8601 — treated as immutable once set
-    decision_override: Optional[str] = None  # If reviewer overrides the automated decision
+    decision_override: str | None = None  # If reviewer overrides the automated decision
     justification: str = ""
-    waiver_expires: Optional[str] = None   # ISO 8601 — if risk is temporarily accepted
+    waiver_expires: str | None = None   # ISO 8601 — if risk is temporarily accepted
     compensating_controls: str = ""        # Required when waiver_expires is set
-    reviewer_confidence: Optional[float] = None  # 0.0-1.0, reviewer's own stated confidence
+    reviewer_confidence: float | None = None  # 0.0-1.0, reviewer's own stated confidence
                                             # in an overriding decision. Only meaningful when
                                             # decision_override actually changes the decision
                                             # (see audit.py::apply_audit_to_dict): the pre-audit
@@ -200,10 +201,10 @@ class AuditRecord:
     # decision/score that held immediately before this audit is not recoverable
     # from the report alone (evidence_level/decision/risk_score/decision_confidence
     # are all overwritten in place, not versioned elsewhere).
-    previous_decision: Optional[str] = None
-    previous_evidence_level: Optional[int] = None
-    previous_risk_score: Optional[float] = None
-    previous_decision_confidence: Optional[float] = None
+    previous_decision: str | None = None
+    previous_evidence_level: int | None = None
+    previous_risk_score: float | None = None
+    previous_decision_confidence: float | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -234,21 +235,21 @@ class EvidenceChain:
     seed_method: str            # Full signature of the seed method
 
     evidence_level: EvidenceLevel
-    component_evidence: Optional[ComponentEvidence] = None  # L1 check result -- status plus every
+    component_evidence: ComponentEvidence | None = None  # L1 check result -- status plus every
                                                     # matching JAR/version, set by every assess_cve()
                                                     # call, not just the OUT_OF_RANGE short-circuit --
                                                     # so the L1 outcome and its supporting matches are
                                                     # never silently discarded once analysis proceeds
                                                     # past it. See fusion.py.
-    static_evidence: Optional[StaticEvidence] = None
-    runtime_evidence: Optional[RuntimeEvidence] = None
+    static_evidence: StaticEvidence | None = None
+    runtime_evidence: RuntimeEvidence | None = None
 
-    decision: Optional[Decision] = None
+    decision: Decision | None = None
     decision_confidence: float = 0.0     # 0.0 – 1.0, overall confidence in the decision
-    risk_score: Optional[float] = None   # 0.0 – 10.0 (CVSS-aligned scale)
+    risk_score: float | None = None   # 0.0 – 10.0 (CVSS-aligned scale)
 
     notes: str = ""
-    audit_record: Optional[AuditRecord] = None   # latest audit, kept for backward compatibility
+    audit_record: AuditRecord | None = None   # latest audit, kept for backward compatibility
     audit_history: list[AuditRecord] = field(default_factory=list)  # full reviewer sign-off trail
 
     def to_dict(self) -> dict:

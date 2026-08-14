@@ -34,7 +34,6 @@ import sys
 from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 from models import StaticEvidence, StaticReachability
 from seed_loader import VulnerableMethod
@@ -238,7 +237,7 @@ def bfs_reachable(
     cg: CallGraph,
     entry_points: list[str],
     seed: VulnerableMethod,
-) -> tuple[bool, list[str], list[dict], Optional[str]]:
+) -> tuple[bool, list[str], list[dict], str | None]:
     """
     Breadth-first search from entry_points through the call graph.
     Returns (is_reachable, path, annotated_path, match_type) where:
@@ -296,8 +295,8 @@ def bfs_reachable(
 
 def find_entry_points(
     cg: CallGraph,
-    project_prefix: Optional[str] = None,
-    extra_entry_points: Optional[list[str]] = None,
+    project_prefix: str | None = None,
+    extra_entry_points: list[str] | None = None,
 ) -> list[str]:
     """
     Find application entry points in the call graph.
@@ -366,9 +365,9 @@ class StaticAnalyzer:
         self,
         app_jars: list[Path],
         seed_method: VulnerableMethod,
-        callgraph_cache: Optional[Path] = None,
-        project_prefix: Optional[str] = None,
-        extra_entry_points: Optional[list[str]] = None,
+        callgraph_cache: Path | None = None,
+        project_prefix: str | None = None,
+        extra_entry_points: list[str] | None = None,
     ) -> StaticEvidence:
         """
         Full pipeline: extract call graph, then run BFS reachability.
@@ -460,7 +459,7 @@ class StaticAnalyzer:
 # Utility helpers
 # ---------------------------------------------------------------------------
 
-def _class_of(sig: str) -> Optional[str]:
+def _class_of(sig: str) -> str | None:
     """
     Extract the class name from a full method signature.
     "org.example.Foo.bar(Ljava/lang/String;)V"  ->  "org.example.Foo"
@@ -476,7 +475,7 @@ def _class_of(sig: str) -> Optional[str]:
     return prefix[:dot]
 
 
-def _method_and_desc_of(sig: str) -> Optional[str]:
+def _method_and_desc_of(sig: str) -> str | None:
     """
     Extract 'methodName(descriptor)ReturnType' from a full signature.
     "org.example.Foo.bar(Ljava/lang/String;)V"  ->  "bar(Ljava/lang/String;)V"
@@ -495,7 +494,7 @@ def _simple_class_name(fqcn: str) -> str:
     return fqcn.rsplit(".", 1)[-1]
 
 
-def _matches_seed(method_sig: str, seed: VulnerableMethod) -> Optional[str]:
+def _matches_seed(method_sig: str, seed: VulnerableMethod) -> str | None:
     """
     Check if a call graph signature matches the seed method definition.
 

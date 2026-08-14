@@ -100,8 +100,6 @@ MITIGATED = 0.10 (compensating controls reduce but don't eliminate exposure).
 
 from __future__ import annotations
 
-from typing import Optional
-
 from component_check import ComponentCheckResult
 from models import (
     ComponentEvidence,
@@ -198,7 +196,7 @@ def _compute_risk_score(cve: str, decision: Decision, level: EvidenceLevel) -> f
     return round(base_cvss * multiplier, 1)
 
 
-def _to_component_evidence(component: Optional[ComponentCheckResult]) -> Optional[ComponentEvidence]:
+def _to_component_evidence(component: ComponentCheckResult | None) -> ComponentEvidence | None:
     """
     Converts a component_check.py ComponentCheckResult into the ComponentEvidence
     stored on an EvidenceChain, carrying every matching JAR/version forward
@@ -216,9 +214,9 @@ def fuse(
     cve: str,
     project_artifact: str,      # "group_id:artifact_id:version" of the analysed app
     seed: Seed,
-    static: Optional[StaticEvidence] = None,
-    runtime: Optional[RuntimeEvidence] = None,
-    component: Optional[ComponentCheckResult] = None,
+    static: StaticEvidence | None = None,
+    runtime: RuntimeEvidence | None = None,
+    component: ComponentCheckResult | None = None,
 ) -> EvidenceChain:
     """
     Combine static and runtime evidence into a complete EvidenceChain.
@@ -325,8 +323,8 @@ def fuse_component_absent(
 # ---------------------------------------------------------------------------
 
 def _decide(
-    static: Optional[StaticEvidence],
-    runtime: Optional[RuntimeEvidence],
+    static: StaticEvidence | None,
+    runtime: RuntimeEvidence | None,
 ) -> tuple[EvidenceLevel, Decision, float]:
     """
     Returns (evidence_level, decision, confidence).
@@ -429,8 +427,8 @@ def _decide(
 
 
 def _build_notes(
-    static: Optional[StaticEvidence],
-    runtime: Optional[RuntimeEvidence],
+    static: StaticEvidence | None,
+    runtime: RuntimeEvidence | None,
     decision: Decision,
 ) -> str:
     parts = []
