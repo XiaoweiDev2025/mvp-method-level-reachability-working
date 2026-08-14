@@ -198,9 +198,15 @@ def _version_satisfies_range(version: str, range_str: str) -> Optional[bool]:
     range_str is a comma-separated AND of clauses, e.g. ">=2.0,<2.7" or
     "<3.6.0" -- the only forms this thesis's own seed corpus uses. Returns
     None, rather than guessing True/False, if any clause's comparison is
-    unparseable (see _compare_versions).
+    unparseable (see _compare_versions), or if range_str contains no
+    recognisable clause at all (e.g. empty, or free text) -- a seed with a
+    missing or malformed vulnerable_range must not be silently treated as
+    "matches every version", the same fail-open reasoning this module
+    applies to a single unparseable clause.
     """
     clauses = _RANGE_CLAUSE.findall(range_str)
+    if not clauses:
+        return None
     for op, bound in clauses:
         cmp = _compare_versions(version, bound)
         if cmp is None:

@@ -13,8 +13,16 @@ Runs the full evidence chain for one or more CVEs against a given project:
 
 Usage:
     python analyzer/pipeline.py --help
-    python analyzer/pipeline.py --project-jars a.jar b.jar --cve CVE-2021-44228
-    python analyzer/pipeline.py --project-jars a.jar b.jar   # runs all seeds
+    python analyzer/pipeline.py --project-jars a.jar b.jar --project-artifact com.example:myapp --cve CVE-2021-44228
+    python analyzer/pipeline.py --project-jars a.jar b.jar --project-artifact com.example:myapp   # runs all seeds
+
+--project-artifact is optional but strongly recommended: it derives the Java
+package prefix used to filter BFS entry points to project-owned classes
+(see find_entry_points() below). Omitting it does not filter at all, which
+risks picking up a library's own tool-class main() methods as spurious entry
+points -- not a correctness failure (this tool is designed to fail toward
+over-approximation, never toward a silent false UNKNOWN), but noisier results
+than supplying the real artifact coordinates.
 """
 
 from __future__ import annotations
@@ -296,8 +304,12 @@ def main():
         help="JAR files to analyze (app JAR + dependency JARs)"
     )
     parser.add_argument(
-        "--project-artifact", default="unknown:unknown:unknown",
-        help="Maven coordinates of the project being assessed"
+        "--project-artifact", default=None,
+        help="Maven coordinates of the project being assessed. Strongly "
+             "recommended: also used to derive the Java package prefix that "
+             "filters entry points to project-owned classes (see below) -- "
+             "omitting it disables that filter entirely rather than falling "
+             "back to a prefix that would silently match no real class."
     )
     parser.add_argument(
         "--cve", nargs="*",
@@ -339,17 +351,27 @@ def main():
     # Derive Java package prefix from Maven groupId (the part before the first ':').
     # e.g. "com.example:log4j-demo" -> "com.example"
     # This filters out library tool classes (Log4j's own Version.main, etc.)
-    # from being treated as application entry points.
-    project_prefix = args.project_artifact.split(":")[0] if ":" in args.project_artifact else None
+    # from being treated as application entry points. Derived only from an
+    # explicitly-supplied --project-artifact, not from the "unknown" display
+    # fallback below -- deriving it from that placeholder would produce a
+    # prefix that matches no real Java package, silently zeroing out every
+    # entry point and reporting UNKNOWN instead of the correct reachability
+    # result (the placeholder is meant only for the report/filename label).
+    project_prefix = (
+        args.project_artifact.split(":")[0]
+        if args.project_artifact and ":" in args.project_artifact
+        else None
+    )
 
-    artifact_slug = args.project_artifact.replace(":", "_").replace("/", "_")
+    project_artifact = args.project_artifact or "unknown:unknown:unknown"
+    artifact_slug = project_artifact.replace(":", "_").replace("/", "_")
     output_file = Path(args.output) if args.output else (
         REPORTS_DIR / f"{artifact_slug}.json"
     )
 
     run(
         project_jars        = project_jars,
-        project_artifact    = args.project_artifact,
+        project_artifact    = project_artifact,
         cve_filter          = args.cve,
         callgraph_cache     = Path(args.callgraph_cache) if args.callgraph_cache else None,
         trace_log           = Path(args.trace_log) if args.trace_log else None,
